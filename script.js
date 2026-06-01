@@ -1,6 +1,4 @@
-const supabaseUrl = 'https://ojucmysnudgozndeyhvz.supabase.co';
-const supabase = window.supabase.createClient(supabaseUrl, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qdWNteXNudWRnb3puZGV5aHZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1OTE3MDEsImV4cCI6MjA4MDk1MTcwMX0.5K7MBvqggnQTBZek3HB2Q59BlhlmqlfyMBAkih5nOhI');
-
+var supabase = window.supabase;
 // Variables globales
 let cartonesOcupados = [];
 let precioPorCarton = 0;

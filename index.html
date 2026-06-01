@@ -114,15 +114,22 @@
     <button onclick="mostrarVentana('bienvenida')">Inicio</button>
   </section>
 
-  <!-- Ventana de pago -->
+ <!-- Ventana de pago -->
   <section id="pago" class="oculto">
     <h2>Pago Móvil</h2>
-    <p>Banco: Venezuela(0102)</p>
-    <p>Teléfono:0424-4687496</p>
-    <p>Cédula:  25476241</p>
+    <p>Banco: Banesco(0134)</p>
+    <p>Teléfono:0412-9662657</p>
+    <p>Cédula:  17190507</p>
     <p>Monto a pagar: <span id="monto-pago"></span> Bs</p>
+    <!-- Dentro de <section id="pago"> -->
+<label for="referencia4dig" style="display:block; margin-top:10px; font-weight:bold;">
+  Últimos 4 dígitos de la referencia bancaria
+</label>
+<input type="text" id="referencia4dig" placeholder="Ej: 1234" maxlength="4" pattern="\d{4}" />
+
     <input type="file" accept="image/*" id="comprobante">
    <button id="btnEnviarComprobante" onclick="enviarComprobante()">Enviar comprobante</button>
+
 
 
     <button onclick="mostrarVentana('bienvenida')">Inicio</button>

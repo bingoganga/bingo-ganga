@@ -25,7 +25,7 @@
   <section id="bienvenida">
     <footer>
   Página creada por 
-  <a href="https://instagram.com/goldenprime.vene" target="_blank" rel="noopener noreferrer" style="color: #16bedb; text-decoration: none; font-weight: bold;">
+  <a href="https://instagram.com/goldenprime.ve" target="_blank" rel="noopener noreferrer" style="color: #16bedb; text-decoration: none; font-weight: bold;">
     @goldenprime.vene
   </a>
 </footer>
@@ -278,9 +278,6 @@
   </div>
 </div>
 
- <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js"></script>
-
  <footer style="text-align: center; padding: 20px; font-size: 13px; color: white; background-color: rgba(0,0,0,0.0);">
   © 2025 Bingo Ganga. Todos los derechos reservados. <br>
   <a href="privacidad.html" style="color: #f9d949; text-decoration: underline;">Política de Privacidad</a>
@@ -290,26 +287,19 @@
   <a href="index.html">
   </a>
 </footer>
-<script>
-// Desactiva clic derecho
-document.addEventListener('contextmenu', function(e) {
-  e.preventDefault();
-  alert("🚫 ¡Clic derecho deshabilitado!\nEste sistema está protegido.");
-});
 
-// Desactiva teclas comunes de inspección
-document.addEventListener('keydown', function(e) {
-  if (
-    e.key === "F12" ||
-    (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
-    (e.ctrlKey && e.key.toLowerCase() === "u")
-  ) {
-    e.preventDefault();
-    alert("⛔ Acción bloqueada.\nEste sistema no permite inspección.");
-    return false;
-  }
-});
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+<script>
+  const supabaseUrl = 'https://yuwsktbtdweirzopowhf.supabase.co/';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1d3NrdGJ0ZHdlaXJ6b3Bvd2hmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzAwMDIsImV4cCI6MjA5NTg0NjAwMn0.5RM5f8_gVh-s2N8qZMF6eGVP9LTiYW6MCvl-ciMbS5o';
+
+  
+   window.supabase = supabase.createClient(supabaseUrl, supabaseKey);
 </script>
+
+<!-- Cargar tu archivo script.js que usará esa instancia -->
+<script src="script.js"></script>
 
 </body>
 </html>

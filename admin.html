@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Administración · Bingo Ganga</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="admin-app">
+    <section id="login" class="pantalla activa">
+      <img class="logo" src="https://i.postimg.cc/pXHGjphM/img4.png" alt="Bingo Ganga">
+      <h1>Administración</h1>
+      <form id="login-form">
+        <input id="admin-email" type="email" autocomplete="username" placeholder="Correo" required>
+        <input id="admin-password" type="password" autocomplete="current-password" placeholder="Contraseña" required>
+        <button type="submit">Entrar</button>
+      </form>
+      <p id="login-estado" role="alert"></p>
+      <a class="btn enlace" href="index.html">Volver al sitio</a>
+    </section>
+
+    <section id="panel" class="pantalla oculto">
+      <header class="admin-header">
+        <div>
+          <h1>Panel de Bingo Ganga</h1>
+          <span id="admin-identidad"></span>
+        </div>
+        <button id="logout" class="btn-secondary">Cerrar sesión</button>
+      </header>
+
+      <nav class="admin-tabs">
+        <button data-tab="ventas" class="active">Ventas</button>
+        <button data-tab="config">Configuración</button>
+        <button data-tab="ganadores-admin">Ganadores</button>
+      </nav>
+
+      <div id="ventas" class="tab-content active">
+        <div class="stats-grid">
+          <article class="stat-card"><b id="stat-clientes">0</b><span>Inscripciones</span></article>
+          <article class="stat-card"><b id="stat-cartones">0</b><span>Cartones</span></article>
+          <article class="stat-card"><b id="stat-monto">0.00 Bs</b><span>Recaudado aprobado</span></article>
+        </div>
+        <div class="panel-section">
+          <button id="recargar">Actualizar</button>
+          <div class="table-wrapper">
+            <table id="tabla-inscripciones">
+              <thead><tr><th>Jugador</th><th>Contacto</th><th>Cartones</th><th>Pago</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="config" class="tab-content">
+        <form id="config-form" class="panel-section">
+          <label>Total de cartones<input id="cfg-total" type="number" min="1" required></label>
+          <label>Precio por cartón<input id="cfg-precio" type="number" min="0" step="0.01" required></label>
+          <label class="check"><input id="cfg-ventas" type="checkbox"> Ventas abiertas</label>
+          <label>Modo<select id="cfg-modo"><option value="libre">Libre</option><option value="fijo">Fijo</option></select></label>
+          <label>Cantidad fija<input id="cfg-fijos" type="number" min="1"></label>
+          <label>WhatsApp<input id="cfg-whatsapp" type="url"></label>
+          <label>YouTube<input id="cfg-youtube" type="url"></label>
+          <button type="submit">Guardar configuración</button>
+        </form>
+      </div>
+
+      <div id="ganadores-admin" class="tab-content">
+        <form id="ganador-form" class="panel-section">
+          <input id="g-nombre" placeholder="Nombre" required>
+          <input id="g-cedula" placeholder="Cédula" required>
+          <input id="g-cartones" placeholder="Cartones ganadores" required>
+          <input id="g-premio" placeholder="Premio" required>
+          <input id="g-telefono" placeholder="Teléfono" required>
+          <input id="g-fecha" type="date" required>
+          <button type="submit">Registrar ganador</button>
+        </form>
+        <div id="ganadores-admin-lista"></div>
+      </div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.min.js"></script>
+  <script src="supabase-config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

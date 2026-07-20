@@ -40,10 +40,10 @@ async function ir(id) {
   destino.classList.add('activa');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  if (id === 'aprobados') await cargarAprobados();
+  if (id === 'lista-aprobados') await cargarAprobados();
   if (id === 'ganadores') await cargarGanadores();
-  if (id === 'top') await cargarTop();
-  if (id === 'inicio') await actualizarProgreso();
+  if (id === 'top-compradores') await cargarTop();
+  if (id === 'bienvenida') await actualizarProgreso();
 }
 
 async function cargarConfig() {
@@ -79,21 +79,21 @@ function aplicarConfigVisual() {
   }
 
   if (state.config.link_whatsapp) {
-    $('#btn-whatsapp-grupo').href = state.config.link_whatsapp;
-    $('#btn-whatsapp-grupo').classList.remove('oculto');
+    $('#btnWhatsapp').href = state.config.link_whatsapp;
+    $('#btnWhatsapp').classList.remove('oculto');
   }
   if (state.config.youtube_live) {
     $('#btn-en-vivo').href = state.config.youtube_live;
     $('#btn-en-vivo').classList.remove('oculto');
   }
   if (state.config.imagen_premios_inicio) {
-    $('#imagen-premios').src = state.config.imagen_premios_inicio;
-    $('#imagen-premios').classList.remove('oculto');
+    $('#imagenPremiosInicio').src = state.config.imagen_premios_inicio;
+    $('#imagenPremiosInicio').classList.remove('oculto');
   }
 
-  $('#admin-pago-banco').textContent = state.config.pago_banco || 'Consulta con la administración';
-  $('#admin-pago-telefono').textContent = state.config.pago_telefono || '';
-  $('#admin-pago-cedula').textContent = state.config.pago_cedula || '';
+  $('#adminPagoBanco').textContent = state.config.pago_banco || 'Consulta con la administración';
+  $('#adminPagoTelefono').textContent = state.config.pago_telefono || '';
+  $('#adminPagoCedula').textContent = state.config.pago_cedula || '';
 }
 
 function totalCartones() {
@@ -160,10 +160,10 @@ async function actualizarProgreso() {
     const total = totalCartones();
     const disponibles = Math.max(0, total - state.ocupados.size);
     const porcentaje = total ? Math.round((disponibles / total) * 100) : 0;
-    $('#texto-progreso').textContent = `${disponibles} de ${total} · ${porcentaje}%`;
-    $('#relleno-progreso').style.width = `${porcentaje}%`;
-    $('#barra-progreso .barra')?.setAttribute('aria-valuenow', String(porcentaje));
-    $('#barra-progreso').classList.toggle('oculto', !esVerdadero(state.config.mostrar_barra_progreso));
+    $('#textoProgresoCartones').textContent = `${disponibles} de ${total} · ${porcentaje}%`;
+    $('#rellenoProgresoCartones').style.width = `${porcentaje}%`;
+    $('#barraProgresoInicio .barra')?.setAttribute('aria-valuenow', String(porcentaje));
+    $('#barraProgresoInicio').classList.toggle('oculto', !esVerdadero(state.config.mostrar_barra_progreso));
   } catch (error) {
     console.error('No se pudo actualizar el progreso:', error);
   }
@@ -318,7 +318,7 @@ async function liberarCompra() {
   state.ocupados.clear();
   state.promoSeleccionada = null;
   state.reservaExpira = null;
-  await ir('inicio');
+  await ir('bienvenida');
 }
 
 function prepararPago() {
@@ -406,7 +406,7 @@ async function enviarInscripcion(evento) {
     state.reservaExpira = null;
     evento.currentTarget.reset();
     mostrarEstado(`Inscripción #${data} enviada correctamente. La administración verificará tu pago.`, 'success');
-    setTimeout(() => ir('consulta'), 2200);
+    setTimeout(() => ir('usuario'), 2200);
   } catch (error) {
     mostrarEstado(error.message || 'No se pudo enviar la inscripción.', 'error');
     $('#enviar').disabled = false;
@@ -456,7 +456,7 @@ function mostrarReferidos(cedula, resumen) {
 }
 
 async function cargarAprobados() {
-  const contenedor = $('#lista-aprobados');
+  const contenedor = $('#contenedor-aprobados');
   contenedor.innerHTML = '<div class="panel-section">Cargando…</div>';
   const { data, error } = await db.rpc('rpc_lista_aprobados');
   if (error) return contenedor.textContent = error.message;
@@ -464,7 +464,7 @@ async function cargarAprobados() {
 }
 
 async function cargarGanadores() {
-  const contenedor = $('#lista-ganadores');
+  const contenedor = $('#listaGanadores');
   contenedor.innerHTML = '<div class="panel-section">Cargando…</div>';
   const { data, error } = await db.rpc('rpc_ganadores_publicos');
   if (error) return contenedor.textContent = error.message;
@@ -472,7 +472,7 @@ async function cargarGanadores() {
 }
 
 async function cargarTop() {
-  const contenedor = $('#lista-top');
+  const contenedor = $('#listaTopCompradores');
   contenedor.innerHTML = '<div class="panel-section">Cargando…</div>';
   const { data, error } = await db.rpc('rpc_top_compradores');
   if (error) return contenedor.textContent = error.message;
@@ -531,7 +531,7 @@ async function registrarJugador(evento) {
   renderPromociones();
   await cargarOcupados();
   renderCartones();
-  await ir('seleccion');
+  await ir('cartones');
 }
 
 function configurarEventos() {
@@ -558,7 +558,7 @@ function configurarEventos() {
     actualizarResumen();
   });
   $$('[data-copiar]').forEach(boton => boton.addEventListener('click', () => copiar(document.getElementById(boton.dataset.copiar).textContent)));
-  $('#copiar-pago').addEventListener('click', () => copiar(`${$('#admin-pago-banco').textContent}\nTeléfono: ${$('#admin-pago-telefono').textContent}\nCédula: ${$('#admin-pago-cedula').textContent}`));
+  $('#copiar-pago').addEventListener('click', () => copiar(`${$('#adminPagoBanco').textContent}\nTeléfono: ${$('#adminPagoTelefono').textContent}\nCédula: ${$('#adminPagoCedula').textContent}`));
   $('#copiar-referido').addEventListener('click', () => copiar($('#enlace-referido').value, 'Enlace de invitación copiado.'));
   ['#cedula', '#referido', '#consulta-cedula', '#pago-cedula'].forEach(selector => $(selector).addEventListener('input', evento => { evento.target.value = limpiarCedula(evento.target.value); }));
   $('#referencia').addEventListener('input', evento => { evento.target.value = evento.target.value.replace(/\D/g, '').slice(0, 4); });
@@ -594,4 +594,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#aviso-legal').close();
   });
 });
-

@@ -19,37 +19,37 @@
   <div id="overlay-carga" class="overlay-carga" role="status"><span class="spinner"></span>Cargando Bingo Ganga…</div>
 
   <main>
-    <section id="inicio" class="pantalla activa hero">
+    <section id="bienvenida" class="pantalla activa hero">
       <p class="firma">Página creada por <a href="https://instagram.com/goldenprime.ve" target="_blank" rel="noopener noreferrer">@goldenpro.ven</a></p>
       <img class="logo" src="https://i.postimg.cc/pXHGjphM/img4.png" alt="Bingo Ganga">
-      <img id="imagen-premios" class="imagen-premios oculto" alt="Premios de Bingo Ganga">
+      <img id="imagenPremiosInicio" class="imagen-premios-inicio oculto" alt="Premios de Bingo Ganga">
       <div id="hora-venezuela" class="reloj"></div>
       <div class="estado-negocio"><span id="estado-ventas" class="badge"></span><span id="precio-inicio"></span></div>
 
-      <div id="barra-progreso" class="progreso-card oculto">
-        <div class="progreso-cabecera"><strong>Cartones disponibles</strong><span id="texto-progreso"></span></div>
-        <div class="barra" role="progressbar" aria-label="Cartones disponibles"><span id="relleno-progreso"></span></div>
+      <div id="barraProgresoInicio" class="barra-progreso-inicio progreso-card oculto">
+        <div class="progreso-cabecera"><strong>Cartones disponibles</strong><span id="textoProgresoCartones"></span></div>
+        <div class="barra barra-progreso-contenedor" role="progressbar" aria-label="Cartones disponibles"><span id="rellenoProgresoCartones" class="barra-progreso-relleno"></span></div>
       </div>
 
       <div class="acciones-inicio">
-        <button data-ir="registro">Comprar cartones</button>
-        <button data-ir="consulta" class="btn-secondary">Verificar mi compra</button>
-        <button data-ir="aprobados" class="btn-secondary">Lista de aprobados</button>
-        <button data-ir="top" class="btn-secondary">Top compradores</button>
+        <button data-ir="inscripcion">Comprar</button>
+        <button data-ir="usuario" class="btn-secondary">Verificar tu compra</button>
+        <button data-ir="lista-aprobados" class="btn-secondary">📋 Lista de aprobados</button>
+        <button data-ir="top-compradores" class="btn-secondary">🏆 Top compradores</button>
         <button data-ir="ganadores" class="btn-secondary">Historial de ganadores</button>
         <a id="btn-en-vivo" class="btn btn-live oculto" target="_blank" rel="noopener noreferrer">Ver en vivo</a>
       </div>
 
-      <div class="redes" aria-label="Redes sociales">
-        <a id="red-whatsapp" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-        <a id="red-youtube" target="_blank" rel="noopener noreferrer">YouTube</a>
-        <a id="red-facebook" target="_blank" rel="noopener noreferrer">Facebook</a>
-        <a id="red-instagram" target="_blank" rel="noopener noreferrer">Instagram</a>
+      <div id="redes-sociales" class="redes" aria-label="Redes sociales">
+        <a id="red-whatsapp" target="_blank" rel="noopener noreferrer" title="WhatsApp"><img src="https://cdn-icons-png.flaticon.com/512/733/733585.png" alt="WhatsApp" width="40"></a>
+        <a id="red-youtube" target="_blank" rel="noopener noreferrer" title="YouTube"><img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube" width="40"></a>
+        <a id="red-facebook" target="_blank" rel="noopener noreferrer" title="Facebook"><img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="Facebook" width="40"></a>
+        <a id="red-instagram" target="_blank" rel="noopener noreferrer" title="Instagram"><img src="https://cdn-icons-png.flaticon.com/512/1384/1384063.png" alt="Instagram" width="40"></a>
       </div>
-      <a id="btn-whatsapp-grupo" class="btn enlace oculto" target="_blank" rel="noopener noreferrer">Unirme al grupo de WhatsApp</a>
+      <a id="btnWhatsapp" class="btn enlace oculto" target="_blank" rel="noopener noreferrer">Unirse al grupo de WhatsApp</a>
     </section>
 
-    <section id="registro" class="pantalla oculto">
+    <section id="inscripcion" class="pantalla oculto">
       <div class="section-title"><span>1</span><div><h1>Datos del jugador</h1><p>Completa tus datos para reservar cartones.</p></div></div>
       <form id="form-jugador" class="panel-section form-grid" novalidate>
         <label>Nombre y apellido<input id="nombre" autocomplete="name" maxlength="90" required></label>
@@ -60,10 +60,10 @@
         <label class="check legal-check"><input id="acepta-legal" type="checkbox" required><span>Acepto los <a href="terminos.html" target="_blank">términos y condiciones</a> y la <a href="privacidad.html" target="_blank">política de privacidad</a>.</span></label>
         <button type="submit">Continuar</button>
       </form>
-      <button data-ir="inicio" class="btn-secondary">Volver</button>
+      <button data-ir="bienvenida" class="btn-secondary">Inicio</button>
     </section>
 
-    <section id="seleccion" class="pantalla oculto pantalla-ancha">
+    <section id="cartones" class="pantalla oculto pantalla-ancha">
       <div class="section-title"><span>2</span><div><h1>Selecciona tus cartones</h1><p>La reserva se mantiene mientras completas el pago.</p></div></div>
       <div class="seleccion-layout">
         <aside class="panel-section compra-resumen">
@@ -91,9 +91,9 @@
       <div class="section-title"><span>3</span><div><h1>Pago móvil</h1><p>Completa el pago y envía tu comprobante.</p></div></div>
       <div class="panel-section pago-destino">
         <h2>Datos para pagar</h2>
-        <p><strong id="admin-pago-banco"></strong></p>
-        <p>Teléfono: <strong id="admin-pago-telefono"></strong> <button type="button" class="copy-mini" data-copiar="admin-pago-telefono">Copiar</button></p>
-        <p>Cédula: <strong id="admin-pago-cedula"></strong> <button type="button" class="copy-mini" data-copiar="admin-pago-cedula">Copiar</button></p>
+        <p><strong id="adminPagoBanco"></strong></p>
+        <p>Teléfono: <strong id="adminPagoTelefono"></strong> <button type="button" class="copy-mini" data-copiar="adminPagoTelefono">Copiar</button></p>
+        <p>Cédula: <strong id="adminPagoCedula"></strong> <button type="button" class="copy-mini" data-copiar="adminPagoCedula">Copiar</button></p>
         <p class="monto-destacado">Monto: <strong><span id="monto-pago">0.00</span> Bs</strong></p>
         <button id="copiar-pago" type="button" class="btn-secondary">Copiar todos los datos</button>
       </div>
@@ -109,11 +109,11 @@
         <button id="enviar" type="submit">Enviar inscripción</button>
       </form>
       <p id="estado-envio" class="status-msg" role="status"></p>
-      <button data-ir="seleccion" class="btn-secondary">Volver a los cartones</button>
+      <button data-ir="cartones" class="btn-secondary">Volver a los cartones</button>
       <button type="button" data-cancelar-compra class="btn-danger">Cancelar compra</button>
     </section>
 
-    <section id="consulta" class="pantalla oculto">
+    <section id="usuario" class="pantalla oculto">
       <div class="section-title"><span>✓</span><div><h1>Consulta tus cartones</h1><p>Ingresa tu cédula para revisar tus compras.</p></div></div>
       <form id="form-consulta" class="panel-section form-inline">
         <input id="consulta-cedula" inputmode="numeric" maxlength="14" placeholder="Cédula" required>
@@ -127,25 +127,25 @@
         <label>Tu enlace de invitación<input id="enlace-referido" readonly></label>
         <div class="action-row"><button id="copiar-referido" type="button">Copiar enlace</button><a id="whatsapp-referido" class="btn btn-secondary" target="_blank" rel="noopener">Compartir</a></div>
       </div>
-      <button data-ir="inicio" class="btn-secondary">Volver</button>
+      <button data-ir="bienvenida" class="btn-secondary">Inicio</button>
     </section>
 
-    <section id="aprobados" class="pantalla oculto pantalla-ancha">
+    <section id="lista-aprobados" class="pantalla oculto pantalla-ancha">
       <div class="section-title"><span>✓</span><div><h1>Lista de aprobados</h1><p>Cartones verificados por la administración.</p></div></div>
-      <div id="lista-aprobados"></div>
-      <button data-ir="inicio" class="btn-secondary">Volver</button>
+      <div id="contenedor-aprobados"></div>
+      <button data-ir="bienvenida" class="btn-secondary">Inicio</button>
     </section>
 
-    <section id="top" class="pantalla oculto">
+    <section id="top-compradores" class="pantalla oculto">
       <div class="section-title"><span>★</span><div><h1>Top compradores</h1><p>Los cinco jugadores con más cartones aprobados.</p></div></div>
-      <div id="lista-top" class="ranking"></div>
-      <button data-ir="inicio" class="btn-secondary">Volver</button>
+      <div id="listaTopCompradores" class="ranking"></div>
+      <button data-ir="bienvenida" class="btn-secondary">Inicio</button>
     </section>
 
     <section id="ganadores" class="pantalla oculto pantalla-ancha">
       <div class="section-title"><span>★</span><div><h1>Historial de ganadores</h1><p>Ganadores registrados por Bingo Ganga.</p></div></div>
-      <div id="lista-ganadores"></div>
-      <button data-ir="inicio" class="btn-secondary">Volver</button>
+      <div id="listaGanadores"></div>
+      <button data-ir="bienvenida" class="btn-secondary">Inicio</button>
     </section>
   </main>
 
@@ -163,4 +163,3 @@
   <script src="public.js"></script>
 </body>
 </html>
-

@@ -8,8 +8,9 @@ Aplicación web estática conectada al proyecto Supabase `bingo ganga`.
 - `admin.html` y `admin.js`: panel separado protegido por Supabase Auth y el rol `app_metadata.role = admin`.
 - `supabase-config.js`: URL y clave publicable del proyecto. No contiene claves secretas.
 - `supabase.sql`: esquema, funciones RPC, RLS, permisos, índices y políticas de Storage.
-- `styles.css`: interfaz adaptable con los colores originales de Bingo Ganga.
+- `styles.css`: CSS original suministrado para Bingo Ganga, con un bloque final de compatibilidad para la implementación segura y las páginas separadas.
 - `privacidad.html` y `terminos.html`: información legal para los jugadores.
+- `referencia-original/`: copia íntegra de los tres códigos suministrados (HTML combinado, JavaScript original y CSS original) para consulta y conservación.
 
 ## Seguridad
 
@@ -35,3 +36,4 @@ La administración se abre desde `admin.html`. La cuenta debe existir en Supabas
 
 dentro de `app_metadata`.
 
+El `index.html` no contiene el formulario de acceso ni el panel administrativo. El código activo se divide entre `public.js` y `admin.js`; el JavaScript combinado original se conserva como referencia, pero no se ejecuta porque dependía de Edge Functions inexistentes y de accesos directos incompatibles con RLS.

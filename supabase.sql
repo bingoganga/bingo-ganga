@@ -428,7 +428,6 @@ set search_path = ''
 as $$
 declare v_count integer;
 begin
-  if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
   delete from public.cartones c
   where c.cedula=regexp_replace(coalesce(_cedula,''), '[^0-9]', '', 'g')
     and c.reservado_hasta is not null
@@ -655,6 +654,7 @@ set search_path = ''
 as $$
 declare v_count integer;
 begin
+  if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
   delete from public.cartones c
   where c.reservado_at < now()-greatest(_min_age,interval '5 minutes')
     and (c.reservado_hasta is null or c.reservado_hasta < now())
@@ -816,3 +816,4 @@ grant select,insert on storage.objects to anon;
 grant select,insert,update,delete on storage.objects to authenticated;
 
 notify pgrst, 'reload schema';
+

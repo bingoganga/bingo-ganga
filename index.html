@@ -211,15 +211,15 @@
     <div class="datos-admin-pago">
       <h3>Datos para pagar</h3>
 
-      <p><strong>Banco Mercantil</strong> <span id="adminPagoBanco">0102</span>
+      <p><strong>Banco Mercantil</strong> <span id="adminPagoBanco">0105</span>
         <button type="button" class="btn-copiar-mini" onclick="copiarDatoPago('adminPagoBanco')">📋</button>
       </p>
 
-      <p><strong>Teléfono:</strong> <span id="adminPagoTelefono">0424-4687496</span>
+      <p><strong>Teléfono:</strong> <span id="adminPagoTelefono">0414-3742385</span>
         <button type="button" class="btn-copiar-mini" onclick="copiarDatoPago('adminPagoTelefono')">📋</button>
       </p>
 
-      <p><strong>Cédula:</strong> <span id="adminPagoCedula">25476241</span>
+      <p><strong>Cédula:</strong> <span id="adminPagoCedula">19353708</span>
         <button type="button" class="btn-copiar-mini" onclick="copiarDatoPago('adminPagoCedula')">📋</button>
       </p>
     
@@ -298,6 +298,17 @@
         Invita a tus amigos para comenzar.
       </p>
 
+      <button type="button"
+              id="btn-carton-gratis"
+              class="btn-carton-gratis oculto"
+              onclick="abrirSolicitudCartonGratis()">
+        🎁 CARTÓN GRATIS
+      </button>
+
+      <p id="estado-carton-gratis"
+         class="estado-carton-gratis oculto"
+         aria-live="polite"></p>
+
       <div class="enlace-referido-box">
         <label for="enlace-referido">Tu enlace personal de invitación</label>
         <div class="enlace-referido-fila">
@@ -354,6 +365,73 @@
     <div style="margin-top: 10px;">
       <button id="btnSeleccionarCarton">Seleccionar</button>
       <button onclick="cerrarModalCarton()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Solicitud de cartón gratis por cinco referidos aprobados -->
+<div id="modal-carton-gratis" class="modal oculto" role="dialog"
+     aria-modal="true" aria-labelledby="titulo-carton-gratis">
+  <div class="modal-contenido modal-contenido-premio">
+    <h2 id="titulo-carton-gratis">🎁 Elige tu cartón gratis</h2>
+    <p class="ayuda-carton-gratis">
+      Selecciona un cartón libre, confirma el teléfono de tu compra y adjunta
+      la captura donde se vea tu barra de referidos completada.
+    </p>
+
+    <div id="contador-reserva-gratis" class="contador-reserva-gratis">
+      Selecciona un cartón para reservarlo durante 5 minutos.
+    </div>
+
+    <div id="contenedor-cartones-gratis"
+         class="contenedor-cartones-gratis"
+         aria-label="Cartones disponibles"></div>
+
+    <div class="resumen-carton-gratis">
+      <div>
+        Cartón seleccionado:
+        <strong id="carton-gratis-seleccionado">Ninguno</strong>
+      </div>
+      <img id="imagen-carton-gratis"
+           class="imagen-carton-gratis oculto"
+           src=""
+           alt="Vista previa del cartón gratis">
+    </div>
+
+    <label class="campo-premio-referidos" for="telefono-premio-referidos">
+      Teléfono usado en tu compra aprobada
+      <input type="tel"
+             id="telefono-premio-referidos"
+             autocomplete="tel"
+             inputmode="tel"
+             placeholder="Ej: 04241234567">
+    </label>
+
+    <label class="campo-premio-referidos" for="captura-referidos">
+      Captura de tus 5 referidos completados
+      <input type="file"
+             id="captura-referidos"
+             accept="image/jpeg,image/png,image/webp">
+    </label>
+
+    <img id="vista-previa-captura-referidos"
+         class="vista-previa-captura-referidos oculto"
+         src=""
+         alt="Vista previa de la captura de referidos">
+
+    <p id="mensaje-premio-referidos"
+       class="mensaje-premio-referidos"
+       aria-live="polite"></p>
+
+    <div class="acciones-modal-premio">
+      <button type="button"
+              id="btn-enviar-carton-gratis"
+              onclick="enviarSolicitudCartonGratis()">
+        Enviar para aprobación
+      </button>
+      <button type="button" onclick="cancelarSolicitudCartonGratis()">
+        Cancelar
+      </button>
     </div>
   </div>
 </div>

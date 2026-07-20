@@ -198,6 +198,38 @@
 
     <div class="panel-section">
       <div class="section-header">
+        <div>
+          <h3>🎁 Cartones gratis por referidos</h3>
+          <p class="section-desc">
+            La base de datos verifica los 5 referidos; la captura sirve como respaldo.
+          </p>
+        </div>
+        <span id="contador-premios-pendientes" class="contador-premios-pendientes">0 pendientes</span>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="tabla-premios-referidos">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Teléfono</th>
+              <th>Cédula</th>
+              <th>Referidos</th>
+              <th>Cartón</th>
+              <th>Captura</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="premios-referidos-tbody"></tbody>
+        </table>
+      </div>
+      <p id="estado-premios-admin" class="status-msg" aria-live="polite"></p>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-header">
         <h3>🔍 Verificación de Duplicados</h3>
       </div>
       <div class="btn-group">

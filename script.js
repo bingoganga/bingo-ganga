@@ -2304,9 +2304,7 @@ const archivoFinal = resultadoComprobante.archivo;
 const extensionFinal = resultadoComprobante.extension;
 const tipoFinal = resultadoComprobante.contentType;
 
-const idArchivo = crypto.randomUUID
-  ? crypto.randomUUID()
-  : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const idArchivo = crearUUIDSeguro();
 
 const carpetaFecha = new Date().toISOString().slice(0, 10);
 const nombreArchivo = `${carpetaFecha}/${idArchivo}.${extensionFinal}`;
@@ -2391,6 +2389,14 @@ clearInterval(timerReserva);
 // ==================== PROGRAMA DE REFERIDOS ====================
 let META_REFERIDOS_CARTON_GRATIS = 5;
 let cedulaReferidosActiva = '';
+let resumenReferidosActual = null;
+let cartonGratisSeleccionado = null;
+let elementoCartonGratisSeleccionado = null;
+let expiraReservaCartonGratis = null;
+let timerReservaCartonGratis = null;
+let seleccionCartonGratisEnProceso = false;
+let enviandoSolicitudCartonGratis = false;
+let urlVistaPreviaReferidos = '';
 
 function normalizarCedulaReferidos(valor) {
   return String(valor || '')
@@ -2456,6 +2462,7 @@ function cargarReferidoDesdeEnlace() {
 function ocultarProgramaReferidos() {
   document.getElementById('programa-referidos')?.classList.add('oculto');
   cedulaReferidosActiva = '';
+  resumenReferidosActual = null;
 }
 
 async function actualizarProgramaReferidos(cedula) {
@@ -2467,6 +2474,8 @@ async function actualizarProgramaReferidos(cedula) {
   const mensaje = document.getElementById('mensaje-referidos');
   const enlaceInput = document.getElementById('enlace-referido');
   const barra = tarjeta?.querySelector('.barra-referidos');
+  const botonPremio = document.getElementById('btn-carton-gratis');
+  const estadoPremio = document.getElementById('estado-carton-gratis');
 
   if (!cedulaLimpia || !tarjeta) return;
 
@@ -2485,6 +2494,7 @@ async function actualizarProgramaReferidos(cedula) {
 
     if (error) throw error;
 
+    resumenReferidosActual = data || {};
     const totalAprobados = Number(data?.aprobados) || 0;
     META_REFERIDOS_CARTON_GRATIS = Math.max(1, Number(data?.meta) || 5);
     if (meta) meta.textContent = String(META_REFERIDOS_CARTON_GRATIS);
@@ -2502,12 +2512,47 @@ async function actualizarProgramaReferidos(cedula) {
 
     if (barra) {
       barra.setAttribute('aria-valuenow', String(progresoVisible));
+      barra.setAttribute('aria-valuemax', String(META_REFERIDOS_CARTON_GRATIS));
+    }
+
+    const solicitudPendiente = data?.solicitud_pendiente === true;
+    const puedeReclamar = data?.puede_reclamar === true;
+    const tieneCompraAprobada = data?.tiene_compra_aprobada === true;
+    const ultimaSolicitud = data?.ultima_solicitud || null;
+
+    botonPremio?.classList.toggle('oculto', !puedeReclamar);
+
+    if (estadoPremio) {
+      estadoPremio.classList.add('oculto');
+      estadoPremio.textContent = '';
+
+      if (solicitudPendiente && ultimaSolicitud?.carton) {
+        estadoPremio.textContent =
+          `⏳ Tu cartón #${ultimaSolicitud.carton} está reservado y en revisión del administrador.`;
+        estadoPremio.classList.remove('oculto');
+      } else if (ultimaSolicitud?.estado === 'aprobado') {
+        estadoPremio.textContent =
+          `✅ Tu último premio, el cartón #${ultimaSolicitud.carton}, fue aprobado.`;
+        estadoPremio.classList.remove('oculto');
+      } else if (ultimaSolicitud?.estado === 'rechazado') {
+        estadoPremio.textContent =
+          '❌ Tu última solicitud fue rechazada. Tus referidos no se consumieron y puedes elegir otro cartón.';
+        estadoPremio.classList.remove('oculto');
+      }
     }
 
     if (mensaje) {
-      if (totalAprobados >= META_REFERIDOS_CARTON_GRATIS) {
+      if (solicitudPendiente) {
         mensaje.innerHTML =
-          '🎉 <strong>¡Meta completada!</strong> Ya conseguiste tu cartón gratis. Comunícate con el administrador para recibirlo.';
+          '⏳ <strong>Solicitud enviada.</strong> La barra se reiniciará solamente cuando el administrador apruebe tu cartón gratis.';
+        tarjeta.classList.add('meta-completada');
+      } else if (totalAprobados >= META_REFERIDOS_CARTON_GRATIS && !tieneCompraAprobada) {
+        mensaje.innerHTML =
+          '🎉 <strong>¡Meta completada!</strong> Necesitas tener una compra propia aprobada para solicitar el premio.';
+        tarjeta.classList.add('meta-completada');
+      } else if (totalAprobados >= META_REFERIDOS_CARTON_GRATIS) {
+        mensaje.innerHTML =
+          '🎉 <strong>¡Meta completada!</strong> Presiona “Cartón gratis”, elige uno libre y envía tu captura.';
         tarjeta.classList.add('meta-completada');
       } else {
         const faltan = META_REFERIDOS_CARTON_GRATIS - totalAprobados;
@@ -2523,9 +2568,456 @@ async function actualizarProgramaReferidos(cedula) {
 
     if (contador) contador.textContent = '0';
     if (relleno) relleno.style.width = '0%';
+    resumenReferidosActual = null;
+    botonPremio?.classList.add('oculto');
+    estadoPremio?.classList.add('oculto');
     if (mensaje) {
       mensaje.textContent =
         'No se pudo cargar el progreso de invitaciones. Intenta nuevamente.';
+    }
+  }
+}
+
+function crearUUIDSeguro() {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'));
+
+  return [
+    hex.slice(0, 4).join(''),
+    hex.slice(4, 6).join(''),
+    hex.slice(6, 8).join(''),
+    hex.slice(8, 10).join(''),
+    hex.slice(10, 16).join('')
+  ].join('-');
+}
+
+function mostrarMensajePremioReferidos(mensaje, esError = false) {
+  const nodo = document.getElementById('mensaje-premio-referidos');
+  if (!nodo) return;
+
+  nodo.textContent = mensaje || '';
+  nodo.style.color = esError ? '#a21735' : '#155724';
+}
+
+function limpiarVistaPreviaCapturaReferidos() {
+  if (urlVistaPreviaReferidos) {
+    URL.revokeObjectURL(urlVistaPreviaReferidos);
+    urlVistaPreviaReferidos = '';
+  }
+
+  const previa = document.getElementById('vista-previa-captura-referidos');
+  if (previa) {
+    previa.src = '';
+    previa.classList.add('oculto');
+  }
+}
+
+function actualizarVistaPreviaCapturaReferidos() {
+  const input = document.getElementById('captura-referidos');
+  const archivo = input?.files?.[0];
+  limpiarVistaPreviaCapturaReferidos();
+
+  if (!archivo) return;
+
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(archivo.type)) {
+    input.value = '';
+    mostrarMensajePremioReferidos(
+      'La captura debe ser JPG, PNG o WebP.',
+      true
+    );
+    return;
+  }
+
+  if (archivo.size > 25 * 1024 * 1024) {
+    input.value = '';
+    mostrarMensajePremioReferidos(
+      'La imagen original es demasiado grande. Usa una captura menor de 25 MB.',
+      true
+    );
+    return;
+  }
+
+  const previa = document.getElementById('vista-previa-captura-referidos');
+  urlVistaPreviaReferidos = URL.createObjectURL(archivo);
+  if (previa) {
+    previa.src = urlVistaPreviaReferidos;
+    previa.classList.remove('oculto');
+  }
+  mostrarMensajePremioReferidos('Captura lista para enviar.');
+}
+
+function limpiarSeleccionCartonGratis() {
+  clearInterval(timerReservaCartonGratis);
+  timerReservaCartonGratis = null;
+
+  elementoCartonGratisSeleccionado?.classList.remove('seleccionado');
+  cartonGratisSeleccionado = null;
+  elementoCartonGratisSeleccionado = null;
+  expiraReservaCartonGratis = null;
+
+  const numero = document.getElementById('carton-gratis-seleccionado');
+  if (numero) numero.textContent = 'Ninguno';
+
+  const imagen = document.getElementById('imagen-carton-gratis');
+  if (imagen) {
+    imagen.src = '';
+    imagen.classList.add('oculto');
+  }
+}
+
+function iniciarContadorReservaCartonGratis(expira) {
+  clearInterval(timerReservaCartonGratis);
+  expiraReservaCartonGratis = expira ? new Date(expira) : null;
+
+  const contadorReserva = document.getElementById('contador-reserva-gratis');
+
+  const renderizar = () => {
+    if (!expiraReservaCartonGratis || !contadorReserva) return;
+
+    const milisegundos = expiraReservaCartonGratis.getTime() - Date.now();
+    const segundos = Math.max(0, Math.ceil(milisegundos / 1000));
+    const minutos = Math.floor(segundos / 60);
+    const resto = segundos % 60;
+
+    contadorReserva.textContent =
+      `⏳ Reserva temporal: ${minutos}:${String(resto).padStart(2, '0')}`;
+
+    if (segundos <= 60) {
+      contadorReserva.style.background = '#f8d7da';
+      contadorReserva.style.borderColor = '#ed1843';
+    } else {
+      contadorReserva.style.background = '#fffbd1';
+      contadorReserva.style.borderColor = '#d4b900';
+    }
+
+    if (segundos <= 0) {
+      clearInterval(timerReservaCartonGratis);
+      limpiarSeleccionCartonGratis();
+      contadorReserva.textContent =
+        '⛔ La reserva venció. Selecciona nuevamente un cartón libre.';
+      mostrarMensajePremioReferidos(
+        'Tu reserva temporal venció antes de enviar la solicitud.',
+        true
+      );
+      void cargarCartonesGratisDisponibles();
+    }
+  };
+
+  renderizar();
+  timerReservaCartonGratis = setInterval(renderizar, 1000);
+}
+
+async function liberarSeleccionCartonGratis() {
+  if (!cartonGratisSeleccionado || !cedulaReferidosActiva) {
+    limpiarSeleccionCartonGratis();
+    return true;
+  }
+
+  const numero = cartonGratisSeleccionado;
+  const token = obtenerTokenReserva(cedulaReferidosActiva);
+
+  const { data, error } = await supabase.rpc('rpc_liberar_reserva', {
+    _numero: numero,
+    _cedula: cedulaReferidosActiva,
+    _reserva_token: token
+  });
+
+  if (error) {
+    console.error('No se pudo liberar la reserva del premio:', error);
+    return false;
+  }
+
+  limpiarSeleccionCartonGratis();
+  return data === true;
+}
+
+async function cargarCartonesGratisDisponibles() {
+  const contenedor = document.getElementById('contenedor-cartones-gratis');
+  if (!contenedor) return;
+
+  contenedor.innerHTML = '<p>Cargando cartones disponibles…</p>';
+
+  const total = Math.max(
+    1,
+    parseInt(await getConfigValue('total_cartones', '300'), 10) || 300
+  );
+  const ocupados = new Set((await fetchTodosLosOcupados()).map(Number));
+
+  contenedor.innerHTML = '';
+
+  for (let numero = 1; numero <= total; numero++) {
+    const boton = document.createElement('button');
+    boton.type = 'button';
+    boton.className = 'carton-gratis-opcion';
+    boton.textContent = numero;
+    boton.setAttribute('aria-label', `Cartón ${numero}`);
+
+    if (ocupados.has(numero)) {
+      boton.classList.add('ocupado');
+      boton.disabled = true;
+      boton.title = 'Cartón ocupado';
+    } else {
+      boton.onclick = () => seleccionarCartonGratis(numero, boton);
+      boton.title = `Seleccionar cartón ${numero}`;
+    }
+
+    contenedor.appendChild(boton);
+  }
+}
+
+async function seleccionarCartonGratis(numero, elemento) {
+  if (seleccionCartonGratisEnProceso || enviandoSolicitudCartonGratis) return;
+  if (!cedulaReferidosActiva) return;
+
+  seleccionCartonGratisEnProceso = true;
+
+  try {
+    if (Number(cartonGratisSeleccionado) === Number(numero)) {
+      await liberarSeleccionCartonGratis();
+      const contadorReserva = document.getElementById('contador-reserva-gratis');
+      if (contadorReserva) {
+        contadorReserva.textContent =
+          'Selecciona un cartón para reservarlo durante 5 minutos.';
+      }
+      return;
+    }
+
+    const token = obtenerTokenReserva(cedulaReferidosActiva);
+    const { data, error } = await supabase.rpc('rpc_reservar_carton', {
+      _numero: Number(numero),
+      _cedula: cedulaReferidosActiva,
+      _reserva_token: token
+    });
+
+    if (error || data?.exito !== true) {
+      throw new Error(
+        data?.mensaje || error?.message ||
+        'Ese cartón acaba de ser tomado. Elige otro.'
+      );
+    }
+
+    const anterior = cartonGratisSeleccionado;
+    const elementoAnterior = elementoCartonGratisSeleccionado;
+
+    cartonGratisSeleccionado = Number(numero);
+    elementoCartonGratisSeleccionado = elemento;
+    elemento.classList.add('seleccionado');
+
+    if (anterior && Number(anterior) !== Number(numero)) {
+      const { error: errorLiberarAnterior } = await supabase.rpc(
+        'rpc_liberar_reserva',
+        {
+          _numero: Number(anterior),
+          _cedula: cedulaReferidosActiva,
+          _reserva_token: token
+        }
+      );
+
+      if (errorLiberarAnterior) {
+        console.warn('La reserva anterior vencerá automáticamente:', errorLiberarAnterior);
+      }
+      elementoAnterior?.classList.remove('seleccionado');
+    }
+
+    const textoSeleccionado = document.getElementById('carton-gratis-seleccionado');
+    if (textoSeleccionado) textoSeleccionado.textContent = `#${numero}`;
+
+    const imagen = document.getElementById('imagen-carton-gratis');
+    if (imagen) {
+      imagen.src = urlCartonWebP(numero);
+      imagen.alt = `Vista previa del cartón ${numero}`;
+      imagen.classList.remove('oculto');
+    }
+
+    iniciarContadorReservaCartonGratis(data.expira);
+    mostrarMensajePremioReferidos(
+      `Cartón #${numero} reservado temporalmente. Completa los datos y envía.`
+    );
+  } catch (error) {
+    console.error('Error seleccionando cartón gratis:', error);
+    mostrarMensajePremioReferidos(error.message, true);
+    alert(error.message);
+    await cargarCartonesGratisDisponibles();
+  } finally {
+    seleccionCartonGratisEnProceso = false;
+  }
+}
+
+async function abrirSolicitudCartonGratis() {
+  if (!cedulaReferidosActiva) {
+    alert('Primero consulta tus cartones con tu cédula.');
+    return;
+  }
+
+  await actualizarProgramaReferidos(cedulaReferidosActiva);
+
+  if (resumenReferidosActual?.solicitud_pendiente) {
+    alert('Ya tienes un cartón gratis pendiente de revisión.');
+    return;
+  }
+
+  if (resumenReferidosActual?.puede_reclamar !== true) {
+    alert('La base de datos todavía no confirma que el premio esté disponible.');
+    return;
+  }
+
+  limpiarSeleccionCartonGratis();
+  limpiarVistaPreviaCapturaReferidos();
+  mostrarMensajePremioReferidos('');
+
+  const inputCaptura = document.getElementById('captura-referidos');
+  if (inputCaptura) inputCaptura.value = '';
+
+  const inputTelefono = document.getElementById('telefono-premio-referidos');
+  const cedulaGuardada = normalizarCedulaReferidos(
+    localStorage.getItem('cliente_cedula') || ''
+  );
+  if (inputTelefono) {
+    inputTelefono.value =
+      cedulaGuardada === cedulaReferidosActiva
+        ? (localStorage.getItem('cliente_telefono') || '')
+        : '';
+  }
+
+  const contadorReserva = document.getElementById('contador-reserva-gratis');
+  if (contadorReserva) {
+    contadorReserva.textContent =
+      'Selecciona un cartón para reservarlo durante 5 minutos.';
+    contadorReserva.style.background = '#fffbd1';
+    contadorReserva.style.borderColor = '#d4b900';
+  }
+
+  document.getElementById('modal-carton-gratis')?.classList.remove('oculto');
+  await cargarCartonesGratisDisponibles();
+}
+
+async function cancelarSolicitudCartonGratis() {
+  if (enviandoSolicitudCartonGratis) return;
+
+  await liberarSeleccionCartonGratis();
+  limpiarVistaPreviaCapturaReferidos();
+
+  const inputCaptura = document.getElementById('captura-referidos');
+  if (inputCaptura) inputCaptura.value = '';
+
+  document.getElementById('modal-carton-gratis')?.classList.add('oculto');
+  mostrarMensajePremioReferidos('');
+}
+
+async function enviarSolicitudCartonGratis() {
+  if (enviandoSolicitudCartonGratis) return;
+
+  const boton = document.getElementById('btn-enviar-carton-gratis');
+  const textoOriginal = boton?.textContent || 'Enviar para aprobación';
+  const telefono = document.getElementById('telefono-premio-referidos')?.value.trim() || '';
+  const archivoOriginal = document.getElementById('captura-referidos')?.files?.[0];
+  let capturaSubida = '';
+
+  try {
+    if (!cedulaReferidosActiva) throw new Error('Primero consulta tu cédula.');
+    if (!cartonGratisSeleccionado) throw new Error('Selecciona un cartón libre.');
+    if (telefono.replace(/\D+/g, '').length < 7) {
+      throw new Error('Confirma el teléfono usado en tu compra aprobada.');
+    }
+    if (!archivoOriginal) {
+      throw new Error('Adjunta la captura de tus referidos completados.');
+    }
+
+    enviandoSolicitudCartonGratis = true;
+    if (boton) {
+      boton.disabled = true;
+      boton.textContent = 'Verificando captura…';
+    }
+
+    const resultadoCaptura = await prepararComprobanteSeguro(
+      archivoOriginal,
+      mensaje => {
+        if (boton) boton.textContent = mensaje;
+      }
+    );
+
+    if (resultadoCaptura.archivo.size > 5 * 1024 * 1024) {
+      throw new Error('La captura preparada supera 5 MB. Usa una imagen más pequeña.');
+    }
+
+    const carpetaFecha = new Date().toISOString().slice(0, 10);
+    capturaSubida =
+      `${carpetaFecha}/${crearUUIDSeguro()}.${resultadoCaptura.extension}`;
+
+    if (boton) boton.textContent = 'Subiendo captura…';
+
+    const { error: errorUpload } = await supabase.storage
+      .from('comprobantes')
+      .upload(capturaSubida, resultadoCaptura.archivo, {
+        contentType: resultadoCaptura.contentType,
+        upsert: false,
+        cacheControl: '31536000'
+      });
+
+    if (errorUpload) {
+      throw new Error('No se pudo subir la captura: ' + errorUpload.message);
+    }
+
+    if (boton) boton.textContent = 'Enviando solicitud…';
+
+    const cartonEnviado = Number(cartonGratisSeleccionado);
+    const { data, error } = await supabase.rpc('rpc_solicitar_carton_gratis', {
+      _cedula: cedulaReferidosActiva,
+      _telefono: telefono,
+      _carton: cartonEnviado,
+      _captura: capturaSubida,
+      _reserva_token: obtenerTokenReserva(cedulaReferidosActiva)
+    });
+
+    if (error || data?.exito !== true) {
+      throw new Error(error?.message || 'No se pudo crear la solicitud.');
+    }
+
+    clearInterval(timerReservaCartonGratis);
+    cartonGratisSeleccionado = null;
+    elementoCartonGratisSeleccionado = null;
+    expiraReservaCartonGratis = null;
+    capturaSubida = '';
+
+    limpiarVistaPreviaCapturaReferidos();
+    const inputCaptura = document.getElementById('captura-referidos');
+    if (inputCaptura) inputCaptura.value = '';
+
+    document.getElementById('modal-carton-gratis')?.classList.add('oculto');
+    alert(
+      `✅ Solicitud enviada. El cartón #${cartonEnviado} quedó reservado hasta que el administrador lo revise.`
+    );
+    await actualizarProgramaReferidos(cedulaReferidosActiva);
+  } catch (error) {
+    console.error('Error enviando solicitud de cartón gratis:', error);
+
+    if (capturaSubida) {
+      const { error: errorLimpieza } = await supabase.storage
+        .from('comprobantes')
+        .remove([capturaSubida]);
+      if (errorLimpieza) {
+        console.warn('La captura temporal no pudo limpiarse:', errorLimpieza);
+      }
+    }
+
+    mostrarMensajePremioReferidos(error.message, true);
+    alert(error.message || 'No se pudo enviar la solicitud.');
+
+    if (/reserva|cartón.*disponible/i.test(error.message || '')) {
+      limpiarSeleccionCartonGratis();
+      await cargarCartonesGratisDisponibles();
+    }
+  } finally {
+    enviandoSolicitudCartonGratis = false;
+    if (boton) {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
     }
   }
 }
@@ -2609,6 +3101,7 @@ function compartirReferidoWhatsApp() {
 
 function configurarEventosReferidos() {
   const consultaCedula = document.getElementById('consulta-cedula');
+  const capturaReferidos = document.getElementById('captura-referidos');
 
   consultaCedula?.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
@@ -2617,12 +3110,20 @@ function configurarEventosReferidos() {
     }
   });
 
+  capturaReferidos?.addEventListener(
+    'change',
+    actualizarVistaPreviaCapturaReferidos
+  );
+
   cargarReferidoDesdeEnlace();
 }
 
 window.copiarEnlaceReferido = copiarEnlaceReferido;
 window.compartirEnlaceReferido = compartirEnlaceReferido;
 window.compartirReferidoWhatsApp = compartirReferidoWhatsApp;
+window.abrirSolicitudCartonGratis = abrirSolicitudCartonGratis;
+window.cancelarSolicitudCartonGratis = cancelarSolicitudCartonGratis;
+window.enviarSolicitudCartonGratis = enviarSolicitudCartonGratis;
 
 
 // ==================== fUNCIONES DE USUARIO ====================
@@ -2772,6 +3273,185 @@ function obtenerRutaComprobante(valor) {
   return '';
 }
 
+async function cargarSolicitudesCartonGratisAdmin() {
+  const tbody = document.getElementById('premios-referidos-tbody');
+  const contadorPendientes = document.getElementById('contador-premios-pendientes');
+  const estado = document.getElementById('estado-premios-admin');
+
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="9">Cargando solicitudes…</td></tr>';
+  if (estado) estado.textContent = '';
+
+  const { data, error } = await supabase.rpc(
+    'rpc_admin_listar_cartones_gratis'
+  );
+
+  if (error) {
+    console.error('Error cargando premios por referidos:', error);
+    tbody.innerHTML =
+      '<tr><td colspan="9">No se pudieron cargar los cartones gratis.</td></tr>';
+    if (estado) estado.textContent = 'Error al cargar solicitudes.';
+    return;
+  }
+
+  const solicitudes = Array.isArray(data) ? data : [];
+  const rutas = [...new Set(
+    solicitudes.map(item => item.captura).filter(Boolean)
+  )];
+  const urls = new Map();
+
+  if (rutas.length) {
+    const { data: firmadas, error: errorFirmas } = await supabase.storage
+      .from('comprobantes')
+      .createSignedUrls(rutas, 15 * 60);
+
+    if (errorFirmas) {
+      console.error('No se pudieron firmar las capturas de referidos:', errorFirmas);
+    } else {
+      (firmadas || []).forEach(item => {
+        if (item.path && item.signedUrl) urls.set(item.path, item.signedUrl);
+      });
+    }
+  }
+
+  tbody.innerHTML = '';
+
+  if (!solicitudes.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="9">Todavía no hay solicitudes de cartón gratis.</td></tr>';
+  }
+
+  solicitudes.forEach(item => {
+    const fila = document.createElement('tr');
+    const urlCaptura = urls.get(item.captura) || '';
+    const estadoActual = item.estado || 'pendiente';
+    const enlaceWhatsapp = buildWhatsAppLink(
+      item.telefono,
+      `Hola ${item.nombre}, te escribo de Bingo Ganga sobre tu cartón gratis por referidos.`
+    );
+    const fecha = item.created_at
+      ? new Date(item.created_at).toLocaleString('es-VE')
+      : '';
+
+    fila.dataset.estadoActual = estadoActual;
+    fila.innerHTML = `
+      <td>${escapeHTML(item.nombre)}</td>
+      <td>
+        <a href="${escapeHTML(enlaceWhatsapp)}" target="_blank" rel="noopener">
+          ${escapeHTML(item.telefono)}
+        </a>
+      </td>
+      <td>${escapeHTML(item.cedula)}</td>
+      <td>
+        <strong>${escapeHTML(item.referidos_disponibles)}/${escapeHTML(item.meta_referidos)}</strong><br>
+        <small>Al enviar: ${escapeHTML(item.referidos_al_solicitar)}</small>
+      </td>
+      <td><strong>#${escapeHTML(item.carton)}</strong></td>
+      <td>
+        ${urlCaptura
+          ? `<a href="${escapeHTML(urlCaptura)}" target="_blank" rel="noopener">
+               <img src="${escapeHTML(urlCaptura)}" alt="Captura de referidos" loading="lazy">
+             </a>`
+          : '<span>Sin vista previa</span>'}
+      </td>
+      <td>${escapeHTML(fecha)}</td>
+      <td>
+        <span class="estado-premio-admin ${escapeHTML(estadoActual)}">
+          ${escapeHTML(estadoActual)}
+        </span>
+      </td>
+      <td class="acciones-premio-admin"></td>
+    `;
+
+    const acciones = fila.querySelector('.acciones-premio-admin');
+
+    if (estadoActual === 'pendiente') {
+      const aprobar = document.createElement('button');
+      aprobar.type = 'button';
+      aprobar.className = 'btn-accion btn-aprobar';
+      aprobar.title = 'Aprobar cartón gratis';
+      aprobar.textContent = '✅';
+      aprobar.onclick = () => resolverSolicitudCartonGratis(
+        item.id,
+        'aprobado',
+        fila
+      );
+
+      const rechazar = document.createElement('button');
+      rechazar.type = 'button';
+      rechazar.className = 'btn-accion btn-rechazar';
+      rechazar.title = 'Rechazar y liberar cartón';
+      rechazar.textContent = '❌';
+      rechazar.onclick = () => resolverSolicitudCartonGratis(
+        item.id,
+        'rechazado',
+        fila
+      );
+
+      acciones.append(aprobar, rechazar);
+    } else {
+      acciones.textContent = 'Revisado';
+    }
+
+    tbody.appendChild(fila);
+  });
+
+  const pendientes = solicitudes.filter(
+    item => item.estado === 'pendiente'
+  ).length;
+  if (contadorPendientes) {
+    contadorPendientes.textContent =
+      `${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'}`;
+  }
+}
+
+async function resolverSolicitudCartonGratis(id, nuevoEstado, fila) {
+  if (fila?.dataset?.procesando === 'true') return;
+
+  const verbo = nuevoEstado === 'aprobado' ? 'aprobar' : 'rechazar';
+  const detalle = nuevoEstado === 'aprobado'
+    ? 'Se consumirán exactamente 5 referidos y el cartón quedará aprobado.'
+    : 'El cartón se liberará y los referidos permanecerán disponibles.';
+
+  if (!confirm(`¿Deseas ${verbo} esta solicitud?\n\n${detalle}`)) return;
+
+  if (fila) fila.dataset.procesando = 'true';
+  fila?.querySelectorAll('button').forEach(boton => {
+    boton.disabled = true;
+  });
+
+  try {
+    const { data, error } = await supabase.rpc(
+      'rpc_admin_resolver_carton_gratis',
+      {
+        _id: Number(id),
+        _estado: nuevoEstado
+      }
+    );
+
+    if (error || data?.exito !== true) {
+      throw new Error(error?.message || 'No se pudo revisar la solicitud.');
+    }
+
+    const restante = Number(data?.referidos_restantes);
+    alert(
+      nuevoEstado === 'aprobado'
+        ? `✅ Cartón #${data.carton} aprobado. La nueva barra quedó en ${Number.isFinite(restante) ? restante : 0}/5.`
+        : `❌ Solicitud rechazada. El cartón #${data.carton} volvió a quedar libre.`
+    );
+
+    await cargarPanelAdmin();
+  } catch (error) {
+    console.error('Error resolviendo cartón gratis:', error);
+    alert(error.message || 'No se pudo revisar la solicitud.');
+    if (fila) fila.dataset.procesando = 'false';
+    fila?.querySelectorAll('button').forEach(boton => {
+      boton.disabled = false;
+    });
+  }
+}
+
 async function cargarPanelAdmin() {
 await Promise.all([
   obtenerTotalCartones(),
@@ -2779,7 +3459,8 @@ await Promise.all([
   contarCartonesVendidos(),
   cargarModoCartonesAdmin(),
   cargarPromocionesAdmin(),
-  cargarEnlacesAdmin()
+  cargarEnlacesAdmin(),
+  cargarSolicitudesCartonGratisAdmin()
 ]);
 
 cartonesOcupados = await fetchTodosLosOcupados();
@@ -4401,6 +5082,18 @@ function activarRefrescoAutomaticoAdmin() {
       },
       (payload) => {
         console.log('🔄 Cambio detectado en inscripciones:', payload);
+        programarRecargaAdmin();
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'solicitudes_carton_gratis'
+      },
+      (payload) => {
+        console.log('🎁 Cambio detectado en cartones gratis:', payload);
         programarRecargaAdmin();
       }
     )

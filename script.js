@@ -1647,7 +1647,7 @@ requestAnimationFrame(() => {
     document.getElementById('monto-pago').textContent = monto.toFixed(2);
     const minutosReserva = Math.min(
       30,
-      Math.max(5, parseInt(await getConfigValue('tiempo_reserva_minutos', '10'), 10) || 10)
+      Math.max(5, parseInt(await getConfigValue('tiempo_reserva_minutos', '5'), 10) || 5)
     );
     iniciarContadorReserva(minutosReserva);
   }
@@ -2389,7 +2389,7 @@ clearInterval(timerReserva);
 
 
 // ==================== PROGRAMA DE REFERIDOS ====================
-let META_REFERIDOS_CARTON_GRATIS = 10;
+let META_REFERIDOS_CARTON_GRATIS = 5;
 let cedulaReferidosActiva = '';
 
 function normalizarCedulaReferidos(valor) {
@@ -2486,7 +2486,7 @@ async function actualizarProgramaReferidos(cedula) {
     if (error) throw error;
 
     const totalAprobados = Number(data?.aprobados) || 0;
-    META_REFERIDOS_CARTON_GRATIS = Math.max(1, Number(data?.meta) || 10);
+    META_REFERIDOS_CARTON_GRATIS = Math.max(1, Number(data?.meta) || 5);
     if (meta) meta.textContent = String(META_REFERIDOS_CARTON_GRATIS);
     const progresoVisible = Math.min(
       totalAprobados,

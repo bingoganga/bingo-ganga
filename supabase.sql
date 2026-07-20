@@ -19,7 +19,7 @@ create table if not exists public.cartones (
   cedula text,
   partida_id bigint,
   reservado_at timestamptz default now(),
-  reservado_hasta timestamptz default (now() + interval '10 minutes')
+  reservado_hasta timestamptz default (now() + interval '5 minutes')
 );
 
 create table if not exists public.configuracion (
@@ -102,8 +102,11 @@ alter table public.inscripciones
 
 alter table public.cartones
   add column if not exists reservado_at timestamptz default now(),
-  add column if not exists reservado_hasta timestamptz default (now() + interval '10 minutes'),
+  add column if not exists reservado_hasta timestamptz default (now() + interval '5 minutes'),
   add column if not exists reserva_token_hash text;
+
+alter table public.cartones
+  alter column reservado_hasta set default (now() + interval '5 minutes');
 
 alter table public.ganadores
   add column if not exists created_at timestamptz not null default now();
@@ -137,9 +140,9 @@ values
   ('modo_cartones', 'libre', null),
   ('cartones_obligatorios', '1', null),
   ('ventas_abierta', null, true),
-  ('tiempo_reserva_minutos', '10', null),
+  ('tiempo_reserva_minutos', '5', null),
   ('mostrar_barra_progreso', 'true', null),
-  ('meta_referidos', '10', null),
+  ('meta_referidos', '5', null),
   ('terminos_version', '2026-07-19', null),
   ('link_whatsapp', '', null),
   ('youtube_live', '', null),
@@ -152,6 +155,14 @@ values
   ('pago_cedula', '25476241', null),
   ('imagen_premios_inicio', '', null)
 on conflict (clave) do nothing;
+
+insert into public.configuracion (clave, valore, valor)
+values
+  ('tiempo_reserva_minutos', '5', null),
+  ('meta_referidos', '5', null)
+on conflict (clave) do update
+set valore = excluded.valore,
+    valor = excluded.valor;
 
 update public.configuracion destino
 set valore = origen.valore
@@ -375,7 +386,7 @@ set search_path = ''
 as $$
   select jsonb_build_object(
     'aprobados', count(distinct i.cedula),
-    'meta', coalesce((select nullif(c.valore,'')::integer from public.configuracion c where c.clave='meta_referidos'), 10)
+    'meta', coalesce((select nullif(c.valore,'')::integer from public.configuracion c where c.clave='meta_referidos'), 5)
   )
   from public.inscripciones i
   where i.estado = 'aprobado'
@@ -417,7 +428,7 @@ begin
 
   select coalesce(nullif(c.valore,'')::integer, 300)
   into v_total from public.configuracion c where c.clave='total_cartones';
-  select least(30, greatest(5, coalesce(nullif(c.valore,'')::integer, 10)))
+  select least(30, greatest(5, coalesce(nullif(c.valore,'')::integer, 5)))
   into v_minutos from public.configuracion c where c.clave='tiempo_reserva_minutos';
 
   if _numero < 1 or _numero > coalesce(v_total,300) then
@@ -438,7 +449,7 @@ begin
   )
   values (
     _numero,true,v_cedula,now(),
-    now() + make_interval(mins => coalesce(v_minutos,10)),v_token_hash
+    now() + make_interval(mins => coalesce(v_minutos,5)),v_token_hash
   )
   on conflict (numero) do update
     set reservado_hasta = excluded.reservado_hasta,
@@ -494,7 +505,7 @@ begin
 
   select coalesce(nullif(c.valore,'')::integer,300) into v_total
   from public.configuracion c where c.clave='total_cartones';
-  select least(30,greatest(5,coalesce(nullif(c.valore,'')::integer,10))) into v_minutos
+  select least(30,greatest(5,coalesce(nullif(c.valore,'')::integer,5))) into v_minutos
   from public.configuracion c where c.clave='tiempo_reserva_minutos';
 
   delete from public.cartones c
@@ -516,7 +527,7 @@ begin
     )
     values(
       v_num,true,v_cedula,_partida_id,now(),
-      now()+make_interval(mins=>coalesce(v_minutos,10)),v_token_hash
+      now()+make_interval(mins=>coalesce(v_minutos,5)),v_token_hash
     )
     on conflict(numero) do nothing
     returning numero into v_insertado;
@@ -538,7 +549,7 @@ begin
   return jsonb_build_object(
     'exito',true,
     'cartones',(select jsonb_agg(x order by x) from unnest(v_resultado) x),
-    'expira',now()+make_interval(mins=>coalesce(v_minutos,10))
+    'expira',now()+make_interval(mins=>coalesce(v_minutos,5))
   );
 end;
 $$;
@@ -610,9 +621,9 @@ as $$
 declare v_expira timestamptz; v_minutos integer;
 begin
   if cardinality(_cartones) < 1 or cardinality(_cartones) > 100 then return null; end if;
-  select least(30,greatest(5,coalesce(nullif(c.valore,'')::integer,10))) into v_minutos
+  select least(30,greatest(5,coalesce(nullif(c.valore,'')::integer,5))) into v_minutos
   from public.configuracion c where c.clave='tiempo_reserva_minutos';
-  v_expira := now()+make_interval(mins=>coalesce(v_minutos,10));
+  v_expira := now()+make_interval(mins=>coalesce(v_minutos,5));
   update public.cartones c
   set reservado_hasta=v_expira
   where c.numero=any(_cartones)

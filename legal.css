@@ -1,0 +1,26 @@
+.legal-page .panel-section {
+  color: #111111;
+  line-height: 1.65;
+  text-align: left;
+}
+
+.legal-page .panel-section h2 {
+  color: #111111;
+  font-size: 1.25rem;
+  margin: 22px 0 8px;
+}
+
+.legal-page .panel-section p {
+  color: #111111;
+  margin-bottom: 14px;
+}
+
+.legal-page .panel-section strong {
+  color: #000000;
+}
+
+.legal-page .panel-section a {
+  color: #0756a3;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}

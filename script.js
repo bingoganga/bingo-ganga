@@ -3350,7 +3350,7 @@ async function cargarSolicitudesCartonGratisAdmin() {
 
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="9">Cargando solicitudes…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8">Cargando solicitudes…</td></tr>';
   if (estado) estado.textContent = '';
 
   const { data, error } = await supabase.rpc(
@@ -3360,7 +3360,7 @@ async function cargarSolicitudesCartonGratisAdmin() {
   if (error) {
     console.error('Error cargando premios por referidos:', error);
     tbody.innerHTML =
-      '<tr><td colspan="9">No se pudieron cargar los cartones gratis.</td></tr>';
+      '<tr><td colspan="8">No se pudieron cargar los cartones gratis.</td></tr>';
     if (estado) estado.textContent = 'Error al cargar solicitudes.';
     return;
   }
@@ -3389,7 +3389,7 @@ async function cargarSolicitudesCartonGratisAdmin() {
 
   if (!solicitudes.length) {
     tbody.innerHTML =
-      '<tr><td colspan="9">Todavía no hay solicitudes de cartón gratis.</td></tr>';
+      '<tr><td colspan="8">Todavía no hay solicitudes de cartón gratis.</td></tr>';
   }
 
   solicitudes.forEach(item => {
@@ -3412,12 +3412,17 @@ async function cargarSolicitudesCartonGratisAdmin() {
           ${escapeHTML(item.telefono)}
         </a>
       </td>
-      <td>${escapeHTML(item.cedula)}</td>
+      <td>
+        <div class="premio-identificacion">
+          <span>C.I. ${escapeHTML(item.cedula)}</span>
+          <span aria-hidden="true">·</span>
+          <strong>Cartón #${escapeHTML(item.carton)}</strong>
+        </div>
+      </td>
       <td>
         <strong>${escapeHTML(item.referidos_disponibles)}/${escapeHTML(item.meta_referidos)}</strong><br>
         <small>Al enviar: ${escapeHTML(item.referidos_al_solicitar)}</small>
       </td>
-      <td><strong>#${escapeHTML(item.carton)}</strong></td>
       <td>
         ${urlCaptura
           ? `<a href="${escapeHTML(urlCaptura)}" target="_blank" rel="noopener">

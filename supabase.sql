@@ -2,6 +2,90 @@
 -- Este archivo es idempotente y representa el estado esperado de producción.
 
 create schema if not exists private;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+
+-- Tablas base. Estas definiciones permiten aplicar el archivo completo en un
+-- proyecto Supabase nuevo y también son seguras sobre el proyecto existente.
+create table if not exists public.admins (
+  id bigint generated always as identity primary key,
+  usuario varchar,
+  clave_hash text
+);
+
+create table if not exists public.cartones (
+  numero bigint primary key check (numero > 0),
+  ocupado boolean,
+  cedula text,
+  partida_id bigint,
+  reservado_at timestamptz default now(),
+  reservado_hasta timestamptz default (now() + interval '10 minutes')
+);
+
+create table if not exists public.configuracion (
+  clave text primary key,
+  total_cartones bigint,
+  valore text,
+  valor boolean
+);
+
+create table if not exists public.ganadores (
+  id bigint generated always as identity primary key,
+  telefono text,
+  nombre text,
+  cedula text,
+  cartones text,
+  premio varchar,
+  fecha date,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.inscripciones (
+  id bigint generated always as identity primary key,
+  nombre text,
+  telefono text,
+  cartones text[],
+  cedula text,
+  referido text,
+  estado text not null default 'pendiente',
+  comprobante varchar,
+  partida_id bigint,
+  referencia4dig text,
+  monto_bs numeric(12,2) not null default 0,
+  pago_banco text,
+  pago_telefono text,
+  pago_cedula text,
+  usa_promo boolean not null default false,
+  promo_desc text,
+  precio_unitario_bs numeric(12,2),
+  created_at timestamptz not null default now(),
+  acepta_terminos boolean not null default false,
+  terminos_version text
+);
+
+-- Sesión administrativa de un solo dispositivo. Los tokens se guardan
+-- únicamente como hashes SHA-256 y solo las Edge Functions de servicio
+-- pueden leer o modificar esta tabla.
+create table if not exists public.admin_sessions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  device_id text not null check (
+    length(btrim(device_id)) between 8 and 200
+  ),
+  session_token_hash text not null unique check (
+    session_token_hash ~ '^[0-9a-f]{64}$'
+  ),
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+
+create index if not exists admin_sessions_expires_at_idx
+  on public.admin_sessions (expires_at);
+
+alter table public.admin_sessions enable row level security;
+revoke all on table public.admin_sessions from public, anon, authenticated;
+grant all on table public.admin_sessions to service_role;
 
 alter table public.inscripciones
   add column if not exists referencia4dig text,
@@ -18,10 +102,24 @@ alter table public.inscripciones
 
 alter table public.cartones
   add column if not exists reservado_at timestamptz default now(),
-  add column if not exists reservado_hasta timestamptz default (now() + interval '10 minutes');
+  add column if not exists reservado_hasta timestamptz default (now() + interval '10 minutes'),
+  add column if not exists reserva_token_hash text;
 
 alter table public.ganadores
   add column if not exists created_at timestamptz not null default now();
+
+create or replace function private.hash_reserva_token(_token text)
+returns text
+language sql
+immutable
+strict
+set search_path = ''
+as $$
+  select encode(extensions.digest(_token, 'sha256'), 'hex');
+$$;
+
+revoke all on function private.hash_reserva_token(text)
+  from public, anon, authenticated;
 
 update public.inscripciones
 set estado = 'pendiente'
@@ -104,6 +202,23 @@ do $$
 begin
   if not exists (
     select 1 from pg_constraint
+    where conname = 'cartones_reserva_token_hash_valido'
+      and conrelid = 'public.cartones'::regclass
+  ) then
+    alter table public.cartones
+      add constraint cartones_reserva_token_hash_valido
+      check (
+        reserva_token_hash is null
+        or reserva_token_hash ~ '^[0-9a-f]{64}$'
+      );
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
     where conname = 'inscripciones_estado_valido'
       and conrelid = 'public.inscripciones'::regclass
   ) then
@@ -142,7 +257,7 @@ as $$
 $$;
 
 revoke all on function private.is_admin() from public, anon;
-grant usage on schema private to authenticated;
+grant usage on schema private to anon, authenticated;
 grant execute on function private.is_admin() to authenticated;
 
 alter table public.admins enable row level security;
@@ -268,7 +383,12 @@ as $$
 $$;
 
 drop function if exists public.rpc_reservar_carton(bigint,text);
-create function public.rpc_reservar_carton(_numero bigint, _cedula text)
+drop function if exists public.rpc_reservar_carton(bigint,text,text);
+create function public.rpc_reservar_carton(
+  _numero bigint,
+  _cedula text,
+  _reserva_token text
+)
 returns jsonb
 language plpgsql
 security definer
@@ -279,11 +399,15 @@ declare
   v_minutos integer;
   v_expira timestamptz;
   v_cedula text := regexp_replace(coalesce(_cedula,''), '[^0-9]', '', 'g');
+  v_token_hash text;
   v_ventas boolean;
 begin
-  if length(v_cedula) < 5 or length(v_cedula) > 14 then
-    return jsonb_build_object('exito',false,'mensaje','Cédula inválida');
+  if length(v_cedula) < 5 or length(v_cedula) > 14
+     or coalesce(_reserva_token,'') !~ '^[0-9a-f]{64}$' then
+    return jsonb_build_object('exito',false,'mensaje','Datos de reserva inválidos');
   end if;
+
+  v_token_hash := private.hash_reserva_token(_reserva_token);
 
   select coalesce(c.valor, lower(c.valore) in ('true','1','si','sí'))
   into v_ventas from public.configuracion c where c.clave='ventas_abierta';
@@ -309,13 +433,19 @@ begin
       where i.estado in ('pendiente','aprobado') and _numero::text = any(i.cartones)
     );
 
-  insert into public.cartones(numero,ocupado,cedula,reservado_at,reservado_hasta)
-  values (_numero,true,v_cedula,now(),now() + make_interval(mins => coalesce(v_minutos,10)))
+  insert into public.cartones(
+    numero,ocupado,cedula,reservado_at,reservado_hasta,reserva_token_hash
+  )
+  values (
+    _numero,true,v_cedula,now(),
+    now() + make_interval(mins => coalesce(v_minutos,10)),v_token_hash
+  )
   on conflict (numero) do update
     set reservado_hasta = excluded.reservado_hasta,
         reservado_at = now()
     where public.cartones.cedula = v_cedula
       and public.cartones.reservado_hasta is not null
+      and public.cartones.reserva_token_hash = v_token_hash
   returning reservado_hasta into v_expira;
 
   if v_expira is not null then
@@ -327,8 +457,12 @@ end;
 $$;
 
 drop function if exists public.rpc_reservar_cartones_aleatorios(integer,text,bigint);
+drop function if exists public.rpc_reservar_cartones_aleatorios(integer,text,text,bigint);
 create function public.rpc_reservar_cartones_aleatorios(
-  _cantidad integer, _cedula text, _partida_id bigint default null
+  _cantidad integer,
+  _cedula text,
+  _reserva_token text,
+  _partida_id bigint default null
 )
 returns jsonb
 language plpgsql
@@ -342,11 +476,15 @@ declare
   v_insertado bigint;
   v_resultado bigint[] := array[]::bigint[];
   v_cedula text := regexp_replace(coalesce(_cedula,''), '[^0-9]', '', 'g');
+  v_token_hash text;
   v_ventas boolean;
 begin
-  if length(v_cedula) < 5 or _cantidad < 1 or _cantidad > 100 then
+  if length(v_cedula) < 5 or _cantidad < 1 or _cantidad > 100
+     or coalesce(_reserva_token,'') !~ '^[0-9a-f]{64}$' then
     return jsonb_build_object('exito',false,'mensaje','Solicitud inválida');
   end if;
+
+  v_token_hash := private.hash_reserva_token(_reserva_token);
 
   select coalesce(c.valor, lower(c.valore) in ('true','1','si','sí'))
   into v_ventas from public.configuracion c where c.clave='ventas_abierta';
@@ -373,8 +511,13 @@ begin
     order by random()
   loop
     v_insertado := null;
-    insert into public.cartones(numero,ocupado,cedula,partida_id,reservado_at,reservado_hasta)
-    values(v_num,true,v_cedula,_partida_id,now(),now()+make_interval(mins=>coalesce(v_minutos,10)))
+    insert into public.cartones(
+      numero,ocupado,cedula,partida_id,reservado_at,reservado_hasta,reserva_token_hash
+    )
+    values(
+      v_num,true,v_cedula,_partida_id,now(),
+      now()+make_interval(mins=>coalesce(v_minutos,10)),v_token_hash
+    )
     on conflict(numero) do nothing
     returning numero into v_insertado;
 
@@ -387,7 +530,8 @@ begin
   if cardinality(v_resultado) <> _cantidad then
     delete from public.cartones c
     where c.numero = any(v_resultado) and c.cedula=v_cedula
-      and c.reservado_hasta is not null;
+      and c.reservado_hasta is not null
+      and c.reserva_token_hash=v_token_hash;
     return jsonb_build_object('exito',false,'mensaje','No quedan suficientes cartones disponibles');
   end if;
 
@@ -400,7 +544,12 @@ end;
 $$;
 
 drop function if exists public.rpc_liberar_reserva(bigint,text);
-create function public.rpc_liberar_reserva(_numero bigint, _cedula text)
+drop function if exists public.rpc_liberar_reserva(bigint,text,text);
+create function public.rpc_liberar_reserva(
+  _numero bigint,
+  _cedula text,
+  _reserva_token text
+)
 returns boolean
 language plpgsql
 security definer
@@ -410,6 +559,7 @@ begin
   delete from public.cartones c
   where c.numero=_numero
     and c.cedula=regexp_replace(coalesce(_cedula,''), '[^0-9]', '', 'g')
+    and c.reserva_token_hash=private.hash_reserva_token(_reserva_token)
     and c.reservado_hasta is not null
     and not exists (
       select 1 from public.inscripciones i
@@ -420,7 +570,11 @@ end;
 $$;
 
 drop function if exists public.rpc_liberar_todas_reservas(text);
-create function public.rpc_liberar_todas_reservas(_cedula text)
+drop function if exists public.rpc_liberar_todas_reservas(text,text);
+create function public.rpc_liberar_todas_reservas(
+  _cedula text,
+  _reserva_token text
+)
 returns integer
 language plpgsql
 security definer
@@ -430,6 +584,7 @@ declare v_count integer;
 begin
   delete from public.cartones c
   where c.cedula=regexp_replace(coalesce(_cedula,''), '[^0-9]', '', 'g')
+    and c.reserva_token_hash=private.hash_reserva_token(_reserva_token)
     and c.reservado_hasta is not null
     and not exists (
       select 1 from public.inscripciones i
@@ -441,7 +596,12 @@ end;
 $$;
 
 drop function if exists public.rpc_renovar_reservas(text,bigint[]);
-create function public.rpc_renovar_reservas(_cedula text, _cartones bigint[])
+drop function if exists public.rpc_renovar_reservas(text,bigint[],text);
+create function public.rpc_renovar_reservas(
+  _cedula text,
+  _cartones bigint[],
+  _reserva_token text
+)
 returns timestamptz
 language plpgsql
 security definer
@@ -457,6 +617,7 @@ begin
   set reservado_hasta=v_expira
   where c.numero=any(_cartones)
     and c.cedula=regexp_replace(coalesce(_cedula,''), '[^0-9]', '', 'g')
+    and c.reserva_token_hash=private.hash_reserva_token(_reserva_token)
     and c.reservado_hasta is not null
     and c.reservado_hasta > now()-interval '30 seconds';
   if found then return v_expira; end if;
@@ -466,6 +627,7 @@ $$;
 
 drop function if exists public.rpc_crear_inscripcion(text,text,text,text,bigint[],text,text,numeric,text,text,text);
 drop function if exists public.rpc_crear_inscripcion(text,text,text,text,bigint[],text,text,numeric,text,text,text,integer,boolean);
+drop function if exists public.rpc_crear_inscripcion(text,text,text,text,bigint[],text,text,numeric,text,text,text,integer,boolean,text);
 create function public.rpc_crear_inscripcion(
   _nombre text,
   _telefono text,
@@ -479,7 +641,8 @@ create function public.rpc_crear_inscripcion(
   _pago_telefono text default null,
   _pago_cedula text default null,
   _promo_id integer default null,
-  _acepta_terminos boolean default false
+  _acepta_terminos boolean default false,
+  _reserva_token text default null
 )
 returns bigint
 language plpgsql
@@ -501,6 +664,7 @@ declare
   v_ventas boolean;
   v_cedula text := regexp_replace(coalesce(_cedula,''), '[^0-9]', '', 'g');
   v_referido text := regexp_replace(coalesce(_referido,''), '[^0-9]', '', 'g');
+  v_token_hash text;
 begin
   if _acepta_terminos is not true then raise exception 'Debes aceptar los términos y la política de privacidad'; end if;
   if length(btrim(coalesce(_nombre,''))) < 3 or length(btrim(_nombre)) > 90 then raise exception 'Nombre inválido'; end if;
@@ -510,6 +674,9 @@ begin
   if cardinality(_cartones) < 1 or cardinality(_cartones) > 100 then raise exception 'Cantidad de cartones inválida'; end if;
   if coalesce(_referencia4dig,'') !~ '^[0-9]{4}$' then raise exception 'Referencia inválida'; end if;
   if coalesce(_comprobante,'') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}/[0-9a-fA-F-]{36}\.(jpg|jpeg|png|webp)$' then raise exception 'Comprobante inválido'; end if;
+  if coalesce(_reserva_token,'') !~ '^[0-9a-f]{64}$' then raise exception 'Token de reserva inválido'; end if;
+
+  v_token_hash := private.hash_reserva_token(_reserva_token);
 
   select count(distinct x) into v_unicas from unnest(_cartones) x;
   if v_unicas <> cardinality(_cartones) then raise exception 'Hay cartones repetidos'; end if;
@@ -527,7 +694,11 @@ begin
   perform 1 from public.cartones c where c.numero=any(_cartones) order by c.numero for update;
   select count(*) into v_reservadas
   from public.cartones c
-  where c.numero=any(_cartones) and c.cedula=v_cedula and c.reservado_hasta is not null;
+  where c.numero=any(_cartones)
+    and c.cedula=v_cedula
+    and c.reservado_hasta is not null
+    and c.reservado_hasta >= now()
+    and c.reserva_token_hash=v_token_hash;
   if v_reservadas <> cardinality(_cartones) then
     raise exception 'Una reserva expiró o pertenece a otra persona';
   end if;
@@ -586,7 +757,8 @@ begin
   ) returning id into v_id;
 
   update public.cartones c
-  set reservado_hasta=null
+  set reservado_hasta=null,
+      reserva_token_hash=null
   where c.numero=any(_cartones) and c.cedula=v_cedula;
 
   return v_id;
@@ -683,11 +855,29 @@ begin
 
   if _estado='rechazado' then
     delete from public.cartones c
-    where c.cedula=v.cedula and c.numero::text=any(v.cartones);
+    where c.cedula=v.cedula
+      and c.numero::text=any(v.cartones)
+      and c.reservado_hasta is null
+      and not exists (
+        select 1
+        from public.inscripciones i
+        where i.id<>_id
+          and i.estado in ('pendiente','aprobado')
+          and c.numero::text=any(i.cartones)
+      );
   else
-    select count(*) into v_conflictos
-    from public.cartones c
-    where c.numero::text=any(v.cartones) and c.cedula<>v.cedula;
+    select
+      (select count(*)
+       from public.cartones c
+       where c.numero::text=any(v.cartones)
+         and (c.cedula<>v.cedula or c.reservado_hasta is not null))
+      +
+      (select count(*)
+       from public.inscripciones i
+       where i.id<>_id
+         and i.estado in ('pendiente','aprobado')
+         and i.cartones && v.cartones)
+    into v_conflictos;
     if v_conflictos>0 then raise exception 'Uno o más cartones ya pertenecen a otra persona'; end if;
 
     for v_num in select x::bigint from unnest(v.cartones) x where x ~ '^[0-9]+$'
@@ -717,7 +907,17 @@ begin
   if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
   select * into v from public.inscripciones i where i.id=_id for update;
   if not found then raise exception 'Inscripción no encontrada'; end if;
-  delete from public.cartones c where c.cedula=v.cedula and c.numero::text=any(v.cartones);
+  delete from public.cartones c
+  where c.cedula=v.cedula
+    and c.numero::text=any(v.cartones)
+    and c.reservado_hasta is null
+    and not exists (
+      select 1
+      from public.inscripciones i
+      where i.id<>_id
+        and i.estado in ('pendiente','aprobado')
+        and c.numero::text=any(i.cartones)
+    );
   delete from public.inscripciones where id=_id;
   return v.comprobante::text;
 end;
@@ -740,18 +940,37 @@ begin
 end;
 $$;
 
+drop function if exists public.rpc_admin_lanzar_cohetes();
+create function public.rpc_admin_lanzar_cohetes()
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
+  perform realtime.send(
+    jsonb_build_object('lanzado_en', now()),
+    'cohetes',
+    'bingo-ganga-celebraciones',
+    false
+  );
+  return true;
+end;
+$$;
+
 -- Cierra el EXECUTE implícito que PostgreSQL concede a PUBLIC.
 revoke all on function public.rpc_configuracion_publica() from public, anon, authenticated;
 revoke all on function public.rpc_cartones_ocupados() from public, anon, authenticated;
 revoke all on function public.rpc_ganadores_publicos() from public, anon, authenticated;
 revoke all on function public.rpc_top_compradores() from public, anon, authenticated;
 revoke all on function public.rpc_resumen_referidos(text) from public, anon, authenticated;
-revoke all on function public.rpc_reservar_carton(bigint,text) from public, anon, authenticated;
-revoke all on function public.rpc_reservar_cartones_aleatorios(integer,text,bigint) from public, anon, authenticated;
-revoke all on function public.rpc_liberar_reserva(bigint,text) from public, anon, authenticated;
-revoke all on function public.rpc_liberar_todas_reservas(text) from public, anon, authenticated;
-revoke all on function public.rpc_renovar_reservas(text,bigint[]) from public, anon, authenticated;
-revoke all on function public.rpc_crear_inscripcion(text,text,text,text,bigint[],text,text,numeric,text,text,text,integer,boolean) from public, anon, authenticated;
+revoke all on function public.rpc_reservar_carton(bigint,text,text) from public, anon, authenticated;
+revoke all on function public.rpc_reservar_cartones_aleatorios(integer,text,text,bigint) from public, anon, authenticated;
+revoke all on function public.rpc_liberar_reserva(bigint,text,text) from public, anon, authenticated;
+revoke all on function public.rpc_liberar_todas_reservas(text,text) from public, anon, authenticated;
+revoke all on function public.rpc_renovar_reservas(text,bigint[],text) from public, anon, authenticated;
+revoke all on function public.rpc_crear_inscripcion(text,text,text,text,bigint[],text,text,numeric,text,text,text,integer,boolean,text) from public, anon, authenticated;
 revoke all on function public.rpc_consultar_jugadas(text) from public, anon, authenticated;
 revoke all on function public.rpc_lista_aprobados() from public, anon, authenticated;
 revoke all on function public.rpc_listar_cartones_huerfanos(interval) from public, anon, authenticated;
@@ -759,6 +978,7 @@ revoke all on function public.rpc_liberar_cartones_huerfanos(interval) from publ
 revoke all on function public.rpc_admin_cambiar_estado(bigint,text) from public, anon, authenticated;
 revoke all on function public.rpc_eliminar_inscripcion_seguro(bigint) from public, anon, authenticated;
 revoke all on function public.rpc_admin_reiniciar_ventas(boolean) from public, anon, authenticated;
+revoke all on function public.rpc_admin_lanzar_cohetes() from public, anon, authenticated;
 
 grant execute on function
   public.rpc_configuracion_publica(),
@@ -766,12 +986,12 @@ grant execute on function
   public.rpc_ganadores_publicos(),
   public.rpc_top_compradores(),
   public.rpc_resumen_referidos(text),
-  public.rpc_reservar_carton(bigint,text),
-  public.rpc_reservar_cartones_aleatorios(integer,text,bigint),
-  public.rpc_liberar_reserva(bigint,text),
-  public.rpc_liberar_todas_reservas(text),
-  public.rpc_renovar_reservas(text,bigint[]),
-  public.rpc_crear_inscripcion(text,text,text,text,bigint[],text,text,numeric,text,text,text,integer,boolean),
+  public.rpc_reservar_carton(bigint,text,text),
+  public.rpc_reservar_cartones_aleatorios(integer,text,text,bigint),
+  public.rpc_liberar_reserva(bigint,text,text),
+  public.rpc_liberar_todas_reservas(text,text),
+  public.rpc_renovar_reservas(text,bigint[],text),
+  public.rpc_crear_inscripcion(text,text,text,text,bigint[],text,text,numeric,text,text,text,integer,boolean,text),
   public.rpc_consultar_jugadas(text),
   public.rpc_lista_aprobados()
 to anon, authenticated;
@@ -781,8 +1001,23 @@ grant execute on function
   public.rpc_liberar_cartones_huerfanos(interval),
   public.rpc_admin_cambiar_estado(bigint,text),
   public.rpc_eliminar_inscripcion_seguro(bigint),
-  public.rpc_admin_reiniciar_ventas(boolean)
+  public.rpc_admin_reiniciar_ventas(boolean),
+  public.rpc_admin_lanzar_cohetes()
 to authenticated;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'inscripciones'
+  ) then
+    alter publication supabase_realtime add table public.inscripciones;
+  end if;
+end;
+$$;
 
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values
@@ -804,6 +1039,43 @@ with check(
   and length(name) < 180
 );
 
+-- Permite al mismo cliente limpiar un comprobante recién subido cuando la
+-- inscripción falla. El nombre UUID no se puede listar ni descargar y la
+-- eliminación deja de estar permitida en cuanto el archivo se usa o envejece.
+create or replace function private.can_delete_recent_receipt(
+  _name text,
+  _created_at timestamptz
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select _created_at >= now() - interval '15 minutes'
+    and not exists (
+      select 1
+      from public.inscripciones i
+      where i.comprobante = _name
+    );
+$$;
+
+revoke all on function private.can_delete_recent_receipt(text,timestamptz)
+  from public, anon, authenticated;
+grant execute on function private.can_delete_recent_receipt(text,timestamptz)
+  to anon;
+
+drop policy if exists public_delete_unclaimed_receipts on storage.objects;
+create policy public_delete_unclaimed_receipts on storage.objects
+for delete to anon
+using (
+  bucket_id='comprobantes'
+  and lower(storage.extension(name)) in ('jpg','jpeg','png','webp')
+  and (storage.foldername(name))[1] ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+  and storage.filename(name) ~* '^[0-9a-f-]{36}\.(jpg|jpeg|png|webp)$'
+  and private.can_delete_recent_receipt(name,created_at)
+);
+
 drop policy if exists public_read_assets on storage.objects;
 create policy public_read_assets on storage.objects for select to anon
 using(bucket_id in ('cartones','imagenes'));
@@ -812,8 +1084,7 @@ drop policy if exists admin_manage_storage on storage.objects;
 create policy admin_manage_storage on storage.objects for all to authenticated
 using((select private.is_admin())) with check((select private.is_admin()));
 
-grant select,insert on storage.objects to anon;
+grant select,insert,delete on storage.objects to anon;
 grant select,insert,update,delete on storage.objects to authenticated;
 
 notify pgrst, 'reload schema';
-

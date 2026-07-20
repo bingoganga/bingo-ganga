@@ -16,7 +16,7 @@
   <meta property="og:url" content="https://bingoganga.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://i.postimg.cc/pXHGjphM/img4.png" />
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260720-2">
 </head>
 <body>
   <div id="overlay-carga" style="
@@ -201,7 +201,7 @@
         <div>
           <h3>🎁 Cartones gratis por referidos</h3>
           <p class="section-desc">
-            La base de datos verifica los 5 referidos; la captura sirve como respaldo.
+            La base de datos verifica la meta vigente; la captura sirve como respaldo.
           </p>
         </div>
         <span id="contador-premios-pendientes" class="contador-premios-pendientes">0 pendientes</span>
@@ -397,6 +397,37 @@
   <div id="tab-config" class="tab-content">
     <div class="panel-section">
       <div class="section-header">
+        <div>
+          <h3>🎁 Meta para el cartón gratis</h3>
+          <p class="section-desc">
+            Cambia cuántos referidos aprobados necesita cada cliente para solicitar su premio.
+          </p>
+        </div>
+      </div>
+
+      <div class="config-group">
+        <label for="metaReferidosCartonGratis">Cantidad de referidos:</label>
+        <div class="input-row">
+          <input type="number"
+                 id="metaReferidosCartonGratis"
+                 min="1"
+                 max="100"
+                 step="1"
+                 inputmode="numeric"
+                 placeholder="Ej: 5">
+          <button type="button" id="guardarMetaReferidosBtn" class="btn-primary">
+            💾 Guardar meta
+          </button>
+        </div>
+        <p id="estadoMetaReferidos" class="status-msg" aria-live="polite"></p>
+        <small class="nota-config-referidos">
+          La nueva cantidad se aplica a solicitudes nuevas. Las solicitudes que ya están pendientes conservan la meta con la que fueron enviadas.
+        </small>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-header">
         <h3>🔗 Enlaces y Redes</h3>
       </div>
       <label style="display:block; margin:15px 0;">
@@ -477,7 +508,7 @@
 </script>
 
 
-<script src="script.js"></script>
+<script src="script.js?v=20260720-2"></script>
 
 </body>
 </html>

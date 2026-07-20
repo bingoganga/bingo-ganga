@@ -48,7 +48,7 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('https://i.postimg.cc/3xHtfDN9/bingo-ganga-transparent.png');
+  background-image: url('assets/fondo-bingo-ganga.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -78,6 +78,9 @@ section:not(.oculto) {
   display: block;
   margin: 30px auto 30px;
   width: 150px;
+  height: auto;
+  aspect-ratio: 1240 / 568;
+  object-fit: contain;
   max-width: 90%;
   filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
   transition: var(--transition);
@@ -417,22 +420,46 @@ button:disabled {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 20px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: auto;
+  max-width: calc(100vw - 30px);
   z-index: 99;
-  padding: 12px 25px;
+  padding: 12px 18px;
   background: linear-gradient(135deg, var(--secondary), #F9E65C);
   border-radius: 50px;
   box-shadow: var(--shadow-lg);
   animation: slideUp 0.5s ease;
 }
 
-#redes-sociales a {
+.redes-iconos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: auto;
+}
+
+.redes-iconos a {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
   color: var(--dark);
-  font-size: 24px;
+  text-decoration: none;
   transition: var(--transition);
 }
 
-#redes-sociales a:hover {
+.red-social-icono {
+  display: block;
+  width: 40px;
+  height: 40px;
+}
+
+.redes-iconos a:hover {
   transform: translateY(-5px) scale(1.2);
 }
 
@@ -443,10 +470,16 @@ button:disabled {
   border-radius: 50px;
   text-decoration: none;
   font-weight: 700;
+  font-size: 14px;
+  line-height: 1.25;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  width: min(100%, 280px);
+  max-width: 280px;
+  margin: 0;
+  white-space: nowrap;
   box-shadow: var(--shadow);
   border: none;
   cursor: pointer;
@@ -629,12 +662,46 @@ button:disabled {
   }
 
   #redes-sociales {
-    padding: 10px 20px;
-    bottom: 15px;
+    position: static;
+    inset: auto;
+    transform: none;
+    flex-direction: column;
+    width: min(100%, 360px);
+    max-width: 360px;
+    margin: 30px auto 12px;
+    padding: 12px 14px;
+    border-radius: 26px;
+    gap: 10px;
   }
 
-  #redes-sociales a {
-    font-size: 20px;
+  .logo {
+    width: min(180px, 52vw);
+    margin: 20px auto 24px;
+  }
+
+  .redes-iconos {
+    gap: 13px;
+    width: 100%;
+  }
+
+  .redes-iconos a {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .red-social-icono {
+    width: 38px;
+    height: 38px;
+  }
+
+  #btnWhatsapp {
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    padding: 12px 16px;
+    font-size: 15px;
+    border-radius: 22px;
   }
 
   .grid-promociones {
@@ -1075,6 +1142,14 @@ button:disabled {
 
 .config-group {
   margin-bottom: 25px;
+}
+
+.nota-config-referidos {
+  display: block;
+  margin-top: 10px;
+  color: #5f6670;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .config-group label {

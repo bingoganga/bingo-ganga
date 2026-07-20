@@ -25,10 +25,11 @@ Aplicación web estática conectada al proyecto Supabase `bingo ganga`.
 
 ## Cartón gratis por referidos
 
-- Al completar 5 referidos aprobados aparece el botón `Cartón gratis`.
+- Al completar la meta configurada por el administrador aparece el botón `Cartón gratis`.
 - El jugador confirma su teléfono, reserva durante 5 minutos un cartón libre y adjunta una captura.
 - La solicitud conserva el cartón hasta que el administrador la apruebe o rechace.
-- Al aprobar se consumen exactamente 5 referidos; cualquier sobrante se mantiene para la siguiente barra.
+- Al aprobar se consume exactamente la meta guardada en la solicitud; cualquier sobrante se mantiene para la siguiente barra.
+- El administrador puede cambiar la meta entre 1 y 100 desde la pestaña `Configuración` sin alterar solicitudes que ya estén pendientes.
 - Al rechazar se libera el cartón y no se consume ningún referido.
 - La base de datos verifica la elegibilidad al enviar y nuevamente al aprobar; la captura es solo respaldo visual.
 

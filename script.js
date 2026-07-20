@@ -1317,6 +1317,75 @@ async function guardarPrecioPorCarton() {
   }
 }
 
+async function cargarMetaReferidosAdmin() {
+  if (!ES_PAGINA_ADMIN) return;
+
+  const input = document.getElementById('metaReferidosCartonGratis');
+  const estado = document.getElementById('estadoMetaReferidos');
+  if (!input) return;
+
+  const { data, error } = await supabase
+    .from('configuracion')
+    .select('valore')
+    .eq('clave', 'meta_referidos')
+    .single();
+
+  if (error) {
+    console.error('Error cargando la meta de referidos:', error);
+    if (estado) estado.textContent = 'No se pudo cargar la meta actual.';
+    return;
+  }
+
+  const meta = Math.min(100, Math.max(1, parseInt(data?.valore, 10) || 5));
+  input.value = String(meta);
+  if (estado) estado.textContent = `Meta actual: ${meta} referidos aprobados.`;
+}
+
+async function guardarMetaReferidosAdmin() {
+  const input = document.getElementById('metaReferidosCartonGratis');
+  const boton = document.getElementById('guardarMetaReferidosBtn');
+  const estado = document.getElementById('estadoMetaReferidos');
+  const meta = Number(input?.value);
+
+  if (!Number.isInteger(meta) || meta < 1 || meta > 100) {
+    if (estado) estado.textContent = 'Ingresa una cantidad entera entre 1 y 100.';
+    input?.focus();
+    return;
+  }
+
+  const textoOriginal = boton?.textContent || 'Guardar meta';
+  if (boton) {
+    boton.disabled = true;
+    boton.textContent = 'Guardando…';
+  }
+
+  try {
+    const { data, error } = await supabase.rpc(
+      'rpc_admin_configurar_meta_referidos',
+      { _meta: meta }
+    );
+
+    if (error || data?.exito !== true) {
+      throw new Error(error?.message || 'No se pudo actualizar la meta.');
+    }
+
+    configuracionPublicaCache = null;
+    META_REFERIDOS_CARTON_GRATIS = meta;
+    if (estado) {
+      estado.textContent = `✅ Nueva meta guardada: ${meta} referidos.`;
+    }
+    alert(`✅ Desde ahora el cartón gratis requiere ${meta} referidos aprobados.`);
+  } catch (error) {
+    console.error('Error guardando la meta de referidos:', error);
+    if (estado) estado.textContent = error.message || 'Error al guardar la meta.';
+  } finally {
+    if (boton) {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
+  }
+}
+
 // ==================== FUNCIONES EXISTENTES ====================
 
 async function obtenerMontoTotalRecaudado() {
@@ -1420,6 +1489,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('verListaBtn')?.addEventListener('click', verListaAprobados);
     document.getElementById('guardarModoCartonesBtn')?.addEventListener('click', guardarModoCartones);
     document.getElementById('modoCartonesSelect')?.addEventListener('change', cambiarModoCartones);
+    document.getElementById('guardarMetaReferidosBtn')?.addEventListener('click', guardarMetaReferidosAdmin);
 
     await cargarConfigBarraProgresoAdmin();
     document.getElementById('overlay-carga')?.style.setProperty('display', 'none');
@@ -3375,7 +3445,8 @@ async function cargarSolicitudesCartonGratisAdmin() {
       aprobar.onclick = () => resolverSolicitudCartonGratis(
         item.id,
         'aprobado',
-        fila
+        fila,
+        item.meta_referidos
       );
 
       const rechazar = document.createElement('button');
@@ -3386,7 +3457,8 @@ async function cargarSolicitudesCartonGratisAdmin() {
       rechazar.onclick = () => resolverSolicitudCartonGratis(
         item.id,
         'rechazado',
-        fila
+        fila,
+        item.meta_referidos
       );
 
       acciones.append(aprobar, rechazar);
@@ -3406,12 +3478,13 @@ async function cargarSolicitudesCartonGratisAdmin() {
   }
 }
 
-async function resolverSolicitudCartonGratis(id, nuevoEstado, fila) {
+async function resolverSolicitudCartonGratis(id, nuevoEstado, fila, metaSolicitud) {
   if (fila?.dataset?.procesando === 'true') return;
 
   const verbo = nuevoEstado === 'aprobado' ? 'aprobar' : 'rechazar';
+  const metaGuardada = Math.max(1, Number(metaSolicitud) || 1);
   const detalle = nuevoEstado === 'aprobado'
-    ? 'Se consumirán exactamente 5 referidos y el cartón quedará aprobado.'
+    ? `Se consumirán exactamente ${metaGuardada} referidos y el cartón quedará aprobado.`
     : 'El cartón se liberará y los referidos permanecerán disponibles.';
 
   if (!confirm(`¿Deseas ${verbo} esta solicitud?\n\n${detalle}`)) return;
@@ -3435,9 +3508,11 @@ async function resolverSolicitudCartonGratis(id, nuevoEstado, fila) {
     }
 
     const restante = Number(data?.referidos_restantes);
+    const consumidos = Number(data?.referidos_consumidos);
+    const metaActual = Math.max(1, Number(data?.meta_actual) || META_REFERIDOS_CARTON_GRATIS || 1);
     alert(
       nuevoEstado === 'aprobado'
-        ? `✅ Cartón #${data.carton} aprobado. La nueva barra quedó en ${Number.isFinite(restante) ? restante : 0}/5.`
+        ? `✅ Cartón #${data.carton} aprobado. Se consumieron ${Number.isFinite(consumidos) ? consumidos : metaGuardada} referidos. La nueva barra quedó en ${Number.isFinite(restante) ? restante : 0}/${metaActual}.`
         : `❌ Solicitud rechazada. El cartón #${data.carton} volvió a quedar libre.`
     );
 
@@ -3460,6 +3535,7 @@ await Promise.all([
   cargarModoCartonesAdmin(),
   cargarPromocionesAdmin(),
   cargarEnlacesAdmin(),
+  cargarMetaReferidosAdmin(),
   cargarSolicitudesCartonGratisAdmin()
 ]);
 
@@ -4141,7 +4217,7 @@ function mostrarSeccion(id) {
   
   const redes = document.getElementById('redes-sociales');
   if (redes) {
-    redes.style.display = id === 'inicio' ? 'flex' : 'none';
+    redes.style.display = id === 'bienvenida' ? 'flex' : 'none';
   }
 }
 
@@ -4228,7 +4304,7 @@ async function cargarLinkWhatsapp() {
   if (!btn) return;
 
   btn.href = link;
-  btn.style.display = 'inline-block';
+  btn.style.display = 'inline-flex';
 }
 
 async function cargarEnlacesAdmin() {

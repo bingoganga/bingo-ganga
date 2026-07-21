@@ -1497,12 +1497,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // El canal se inicia antes de las demás consultas para no perder celebraciones
+  // mientras termina de cargar la página pública.
+  activarCanalCelebraciones();
+
   // Crear ta¿'bl ses nxiste
    document.getElementById('modal-terminos').classList.remove('oculto');
   await obtenerTotalCartones();
   await cargarLinkWhatsapp();
   await cargarLinkYoutube();
-  activarCanalCelebraciones();
   document.getElementById('overlay-carga').style.display = 'none';
 
   await Promise.all([
@@ -4527,6 +4530,9 @@ function toggleFormularioGanador() {
 }
 
 let canalCelebraciones = null;
+let estadoCanalCelebraciones = 'CLOSED';
+let reintentoCanalCelebraciones = null;
+let intentosCanalCelebraciones = 0;
 
 function mostrarCohetes() {
   const escenario = document.createElement('div');
@@ -4552,22 +4558,97 @@ function mostrarCohetes() {
   setTimeout(() => escenario.remove(), 4500);
 }
 
+function programarReconexionCelebraciones() {
+  if (ES_PAGINA_ADMIN || reintentoCanalCelebraciones || navigator.onLine === false) return;
+
+  const espera = Math.min(2000 * (2 ** Math.min(intentosCanalCelebraciones, 3)), 15000);
+  intentosCanalCelebraciones += 1;
+
+  reintentoCanalCelebraciones = setTimeout(() => {
+    reintentoCanalCelebraciones = null;
+    activarCanalCelebraciones();
+  }, espera);
+}
+
 function activarCanalCelebraciones() {
   if (canalCelebraciones || ES_PAGINA_ADMIN) return;
 
-  canalCelebraciones = supabase
-    .channel('bingo-ganga-celebraciones')
-    .on('broadcast', { event: 'cohetes' }, mostrarCohetes)
-    .subscribe();
+  const canalActual = supabase
+    .channel('bingo-ganga-celebraciones', { config: { private: false } })
+    .on('broadcast', { event: 'cohetes' }, () => mostrarCohetes());
+
+  canalCelebraciones = canalActual;
+  estadoCanalCelebraciones = 'JOINING';
+
+  canalActual.subscribe((estado, error) => {
+    if (canalActual !== canalCelebraciones) return;
+
+    estadoCanalCelebraciones = estado;
+
+    if (estado === 'SUBSCRIBED') {
+      intentosCanalCelebraciones = 0;
+      if (reintentoCanalCelebraciones) {
+        clearTimeout(reintentoCanalCelebraciones);
+        reintentoCanalCelebraciones = null;
+      }
+      console.log('🎆 Canal de celebraciones conectado');
+      return;
+    }
+
+    if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') {
+      console.warn('No se pudo mantener el canal de celebraciones:', estado, error || '');
+      canalCelebraciones = null;
+      void supabase.removeChannel(canalActual).catch((errorRemocion) => {
+        console.warn('No se pudo retirar el canal anterior:', errorRemocion);
+      });
+      programarReconexionCelebraciones();
+    }
+  });
 }
 
-async function activarCohetes() {
-  const { error } = await supabase.rpc('rpc_admin_lanzar_cohetes');
+window.addEventListener('online', () => {
+  if (!ES_PAGINA_ADMIN && estadoCanalCelebraciones !== 'SUBSCRIBED') {
+    activarCanalCelebraciones();
+  }
+});
 
-  if (error) {
-    alert("Error activando cohetes");
-  } else {
-    alert("¡Cohetes activados!");
+document.addEventListener('visibilitychange', () => {
+  if (!ES_PAGINA_ADMIN && !document.hidden && !canalCelebraciones) {
+    activarCanalCelebraciones();
+  }
+});
+
+let enviandoCohetes = false;
+
+async function activarCohetes() {
+  if (enviandoCohetes) return;
+
+  const boton = document.getElementById('lanzarCohetesBtn');
+  const textoOriginal = boton?.textContent || '🎆 Lanzar Cohetes';
+  enviandoCohetes = true;
+
+  if (boton) {
+    boton.disabled = true;
+    boton.textContent = '🎆 Lanzando...';
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('rpc_admin_lanzar_cohetes');
+    if (error) throw error;
+    if (data !== true) throw new Error('Supabase no confirmó el lanzamiento');
+
+    alert('¡Cohetes lanzados! Los clientes conectados los verán ahora.');
+    mostrarCohetes();
+  } catch (error) {
+    console.error('Error activando cohetes:', error);
+    const detalle = error?.message ? `\n\nDetalle: ${error.message}` : '';
+    alert(`No se pudieron lanzar los cohetes.${detalle}`);
+  } finally {
+    enviandoCohetes = false;
+    if (boton) {
+      boton.disabled = false;
+      boton.textContent = textoOriginal;
+    }
   }
 }
 

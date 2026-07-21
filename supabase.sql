@@ -2041,7 +2041,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   v_ins integer;
   v_cart integer;
@@ -2066,7 +2066,7 @@ begin
     'premios_referidos', v_premios
   );
 end;
-$;
+$$;
 
 create or replace function private.can_delete_recent_receipt(
   _name text,

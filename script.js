@@ -1497,10 +1497,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // El canal se inicia antes de las demás consultas para no perder celebraciones
-  // mientras termina de cargar la página pública.
-  activarCanalCelebraciones();
-
   // Crear ta¿'bl ses nxiste
    document.getElementById('modal-terminos').classList.remove('oculto');
   await obtenerTotalCartones();
@@ -4529,95 +4525,6 @@ function toggleFormularioGanador() {
   contenedor.style.display = contenedor.style.display === 'none' ? 'block' : 'none';
 }
 
-let canalCelebraciones = null;
-let estadoCanalCelebraciones = 'CLOSED';
-let reintentoCanalCelebraciones = null;
-let intentosCanalCelebraciones = 0;
-
-function mostrarCohetes() {
-  const escenario = document.createElement('div');
-  escenario.setAttribute('aria-hidden', 'true');
-  escenario.style.cssText = 'position:fixed;inset:0;z-index:999998;pointer-events:none;overflow:hidden;';
-  document.body.appendChild(escenario);
-
-  for (let i = 0; i < 24; i++) {
-    const cohete = document.createElement('span');
-    cohete.textContent = i % 2 ? '🎆' : '🎇';
-    cohete.style.cssText = `position:absolute;left:${Math.random() * 94}%;top:${20 + Math.random() * 65}%;font-size:${28 + Math.random() * 38}px;`;
-    escenario.appendChild(cohete);
-    cohete.animate(
-      [
-        { transform: 'scale(.2) rotate(0deg)', opacity: 0 },
-        { transform: 'scale(1.35) rotate(20deg)', opacity: 1, offset: .4 },
-        { transform: 'scale(.8) rotate(-15deg)', opacity: 0 }
-      ],
-      { duration: 1800 + Math.random() * 1800, delay: Math.random() * 900, easing: 'ease-out' }
-    );
-  }
-
-  setTimeout(() => escenario.remove(), 4500);
-}
-
-function programarReconexionCelebraciones() {
-  if (ES_PAGINA_ADMIN || reintentoCanalCelebraciones || navigator.onLine === false) return;
-
-  const espera = Math.min(2000 * (2 ** Math.min(intentosCanalCelebraciones, 3)), 15000);
-  intentosCanalCelebraciones += 1;
-
-  reintentoCanalCelebraciones = setTimeout(() => {
-    reintentoCanalCelebraciones = null;
-    activarCanalCelebraciones();
-  }, espera);
-}
-
-function activarCanalCelebraciones() {
-  if (canalCelebraciones || ES_PAGINA_ADMIN) return;
-
-  const canalActual = supabase
-    .channel('bingo-ganga-celebraciones', { config: { private: false } })
-    .on('broadcast', { event: 'cohetes' }, () => mostrarCohetes());
-
-  canalCelebraciones = canalActual;
-  estadoCanalCelebraciones = 'JOINING';
-
-  canalActual.subscribe((estado, error) => {
-    if (canalActual !== canalCelebraciones) return;
-
-    estadoCanalCelebraciones = estado;
-
-    if (estado === 'SUBSCRIBED') {
-      intentosCanalCelebraciones = 0;
-      if (reintentoCanalCelebraciones) {
-        clearTimeout(reintentoCanalCelebraciones);
-        reintentoCanalCelebraciones = null;
-      }
-      console.log('🎆 Canal de celebraciones conectado');
-      return;
-    }
-
-    if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT' || estado === 'CLOSED') {
-      console.warn('No se pudo mantener el canal de celebraciones:', estado, error || '');
-      canalCelebraciones = null;
-      void supabase.removeChannel(canalActual).catch((errorRemocion) => {
-        console.warn('No se pudo retirar el canal anterior:', errorRemocion);
-      });
-      programarReconexionCelebraciones();
-    }
-  });
-}
-
-window.addEventListener('online', () => {
-  if (!ES_PAGINA_ADMIN && estadoCanalCelebraciones !== 'SUBSCRIBED') {
-    activarCanalCelebraciones();
-  }
-});
-
-document.addEventListener('visibilitychange', () => {
-  if (!ES_PAGINA_ADMIN && !document.hidden && !canalCelebraciones) {
-    activarCanalCelebraciones();
-  }
-});
-
 let enviandoCohetes = false;
 
 async function activarCohetes() {
@@ -4637,8 +4544,7 @@ async function activarCohetes() {
     if (error) throw error;
     if (data !== true) throw new Error('Supabase no confirmó el lanzamiento');
 
-    alert('¡Cohetes lanzados! Los clientes conectados los verán ahora.');
-    mostrarCohetes();
+    alert('¡Señal enviada! Los cohetes se mostrarán en la pantalla En Vivo.');
   } catch (error) {
     console.error('Error activando cohetes:', error);
     const detalle = error?.message ? `\n\nDetalle: ${error.message}` : '';

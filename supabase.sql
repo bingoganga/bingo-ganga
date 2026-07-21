@@ -2041,7 +2041,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = ''
-as $$
+as $
 declare
   v_ins integer;
   v_cart integer;
@@ -2049,14 +2049,14 @@ declare
   v_premios integer;
 begin
   if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
-  delete from public.solicitudes_carton_gratis;
+  delete from public.solicitudes_carton_gratis where true;
   get diagnostics v_premios = row_count;
-  delete from public.inscripciones;
+  delete from public.inscripciones where true;
   get diagnostics v_ins = row_count;
-  delete from public.cartones;
+  delete from public.cartones where true;
   get diagnostics v_cart = row_count;
   if _incluir_ganadores then
-    delete from public.ganadores;
+    delete from public.ganadores where true;
     get diagnostics v_gan = row_count;
   end if;
   return jsonb_build_object(
@@ -2066,7 +2066,7 @@ begin
     'premios_referidos', v_premios
   );
 end;
-$$;
+$;
 
 create or replace function private.can_delete_recent_receipt(
   _name text,

@@ -1,12 +1,12 @@
 -- Bingo Ganga - esquema seguro y funciones completas para Supabase.
--- Este archivo es idempotente y representa el estado esperado de producción.
+-- Este archivo es idempotente y representa el estado esperado de producciÃ³n.
 
 create schema if not exists private;
 create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
 
 -- Tablas base. Estas definiciones permiten aplicar el archivo completo en un
--- proyecto Supabase nuevo y también son seguras sobre el proyecto existente.
+-- proyecto Supabase nuevo y tambiÃ©n son seguras sobre el proyecto existente.
 create table if not exists public.admins (
   id bigint generated always as identity primary key,
   usuario varchar,
@@ -63,8 +63,8 @@ create table if not exists public.inscripciones (
   terminos_version text
 );
 
--- Sesión administrativa de un solo dispositivo. Los tokens se guardan
--- únicamente como hashes SHA-256 y solo las Edge Functions de servicio
+-- SesiÃ³n administrativa de un solo dispositivo. Los tokens se guardan
+-- Ãºnicamente como hashes SHA-256 y solo las Edge Functions de servicio
 -- pueden leer o modificar esta tabla.
 create table if not exists public.admin_sessions (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -303,7 +303,7 @@ grant select, insert, update, delete
   to authenticated;
 grant usage, select on all sequences in schema public to authenticated;
 
--- Las funciones públicas devuelven solo columnas expresamente seguras.
+-- Las funciones pÃºblicas devuelven solo columnas expresamente seguras.
 drop function if exists public.rpc_configuracion_publica();
 create function public.rpc_configuracion_publica()
 returns table(clave text, valore text, valor boolean)
@@ -414,15 +414,15 @@ declare
 begin
   if length(v_cedula) < 5 or length(v_cedula) > 14
      or coalesce(_reserva_token,'') !~ '^[0-9a-f]{64}$' then
-    return jsonb_build_object('exito',false,'mensaje','Datos de reserva inválidos');
+    return jsonb_build_object('exito',false,'mensaje','Datos de reserva invÃ¡lidos');
   end if;
 
   v_token_hash := private.hash_reserva_token(_reserva_token);
 
-  select coalesce(c.valor, lower(c.valore) in ('true','1','si','sí'))
+  select coalesce(c.valor, lower(c.valore) in ('true','1','si','sÃ­'))
   into v_ventas from public.configuracion c where c.clave='ventas_abierta';
   if v_ventas is not true then
-    return jsonb_build_object('exito',false,'mensaje','Las ventas están cerradas');
+    return jsonb_build_object('exito',false,'mensaje','Las ventas estÃ¡n cerradas');
   end if;
 
   select coalesce(nullif(c.valore,'')::integer, 300)
@@ -431,7 +431,7 @@ begin
   into v_minutos from public.configuracion c where c.clave='tiempo_reserva_minutos';
 
   if _numero < 1 or _numero > coalesce(v_total,300) then
-    return jsonb_build_object('exito',false,'mensaje','Cartón fuera de rango');
+    return jsonb_build_object('exito',false,'mensaje','CartÃ³n fuera de rango');
   end if;
 
   delete from public.cartones c
@@ -462,7 +462,7 @@ begin
     return jsonb_build_object('exito',true,'numero',_numero,'expira',v_expira);
   end if;
 
-  return jsonb_build_object('exito',false,'mensaje','Ese cartón ya está ocupado');
+  return jsonb_build_object('exito',false,'mensaje','Ese cartÃ³n ya estÃ¡ ocupado');
 end;
 $$;
 
@@ -491,15 +491,15 @@ declare
 begin
   if length(v_cedula) < 5 or _cantidad < 1 or _cantidad > 100
      or coalesce(_reserva_token,'') !~ '^[0-9a-f]{64}$' then
-    return jsonb_build_object('exito',false,'mensaje','Solicitud inválida');
+    return jsonb_build_object('exito',false,'mensaje','Solicitud invÃ¡lida');
   end if;
 
   v_token_hash := private.hash_reserva_token(_reserva_token);
 
-  select coalesce(c.valor, lower(c.valore) in ('true','1','si','sí'))
+  select coalesce(c.valor, lower(c.valore) in ('true','1','si','sÃ­'))
   into v_ventas from public.configuracion c where c.clave='ventas_abierta';
   if v_ventas is not true then
-    return jsonb_build_object('exito',false,'mensaje','Las ventas están cerradas');
+    return jsonb_build_object('exito',false,'mensaje','Las ventas estÃ¡n cerradas');
   end if;
 
   select coalesce(nullif(c.valore,'')::integer,300) into v_total
@@ -676,24 +676,24 @@ declare
   v_referido text := regexp_replace(coalesce(_referido,''), '[^0-9]', '', 'g');
   v_token_hash text;
 begin
-  if _acepta_terminos is not true then raise exception 'Debes aceptar los términos y la política de privacidad'; end if;
-  if length(btrim(coalesce(_nombre,''))) < 3 or length(btrim(_nombre)) > 90 then raise exception 'Nombre inválido'; end if;
-  if length(regexp_replace(coalesce(_telefono,''), '[^0-9]', '', 'g')) < 7 then raise exception 'Teléfono inválido'; end if;
-  if length(v_cedula) < 5 or length(v_cedula) > 14 then raise exception 'Cédula inválida'; end if;
+  if _acepta_terminos is not true then raise exception 'Debes aceptar los tÃ©rminos y la polÃ­tica de privacidad'; end if;
+  if length(btrim(coalesce(_nombre,''))) < 3 or length(btrim(_nombre)) > 90 then raise exception 'Nombre invÃ¡lido'; end if;
+  if length(regexp_replace(coalesce(_telefono,''), '[^0-9]', '', 'g')) < 7 then raise exception 'TelÃ©fono invÃ¡lido'; end if;
+  if length(v_cedula) < 5 or length(v_cedula) > 14 then raise exception 'CÃ©dula invÃ¡lida'; end if;
   if v_referido = v_cedula then raise exception 'No puedes referirte a ti mismo'; end if;
-  if cardinality(_cartones) < 1 or cardinality(_cartones) > 100 then raise exception 'Cantidad de cartones inválida'; end if;
-  if coalesce(_referencia4dig,'') !~ '^[0-9]{4}$' then raise exception 'Referencia inválida'; end if;
-  if coalesce(_comprobante,'') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}/[0-9a-fA-F-]{36}\.(jpg|jpeg|png|webp)$' then raise exception 'Comprobante inválido'; end if;
-  if coalesce(_reserva_token,'') !~ '^[0-9a-f]{64}$' then raise exception 'Token de reserva inválido'; end if;
+  if cardinality(_cartones) < 1 or cardinality(_cartones) > 100 then raise exception 'Cantidad de cartones invÃ¡lida'; end if;
+  if coalesce(_referencia4dig,'') !~ '^[0-9]{4}$' then raise exception 'Referencia invÃ¡lida'; end if;
+  if coalesce(_comprobante,'') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}/[0-9a-fA-F-]{36}\.(jpg|jpeg|png|webp)$' then raise exception 'Comprobante invÃ¡lido'; end if;
+  if coalesce(_reserva_token,'') !~ '^[0-9a-f]{64}$' then raise exception 'Token de reserva invÃ¡lido'; end if;
 
   v_token_hash := private.hash_reserva_token(_reserva_token);
 
   select count(distinct x) into v_unicas from unnest(_cartones) x;
   if v_unicas <> cardinality(_cartones) then raise exception 'Hay cartones repetidos'; end if;
 
-  select coalesce(c.valor, lower(c.valore) in ('true','1','si','sí')) into v_ventas
+  select coalesce(c.valor, lower(c.valore) in ('true','1','si','sÃ­')) into v_ventas
   from public.configuracion c where c.clave='ventas_abierta';
-  if v_ventas is not true then raise exception 'Las ventas están cerradas'; end if;
+  if v_ventas is not true then raise exception 'Las ventas estÃ¡n cerradas'; end if;
 
   select coalesce(nullif(c.valore,'')::integer,300) into v_total
   from public.configuracion c where c.clave='total_cartones';
@@ -710,7 +710,7 @@ begin
     and c.reservado_hasta >= now()
     and c.reserva_token_hash=v_token_hash;
   if v_reservadas <> cardinality(_cartones) then
-    raise exception 'Una reserva expiró o pertenece a otra persona';
+    raise exception 'Una reserva expirÃ³ o pertenece a otra persona';
   end if;
 
   if exists(
@@ -722,7 +722,7 @@ begin
   if not exists(
     select 1 from storage.objects o
     where o.bucket_id='comprobantes' and o.name=_comprobante
-  ) then raise exception 'No se encontró el comprobante subido'; end if;
+  ) then raise exception 'No se encontrÃ³ el comprobante subido'; end if;
 
   select greatest(0,coalesce(nullif(c.valore,'')::numeric,0)) into v_precio
   from public.configuracion c where c.clave='precio_carton';
@@ -730,7 +730,7 @@ begin
   v_monto := cardinality(_cartones) * v_precio;
 
   if _promo_id between 1 and 4 then
-    select lower(coalesce(a.valore,'false')) in ('true','1','si','sí'),
+    select lower(coalesce(a.valore,'false')) in ('true','1','si','sÃ­'),
            coalesce(nullif(q.valore,'')::integer,0),
            greatest(0,coalesce(nullif(p.valore,'')::numeric,0)),
            nullif(btrim(d.valore),'')
@@ -859,9 +859,9 @@ as $$
 declare v public.inscripciones%rowtype; v_num bigint; v_conflictos integer;
 begin
   if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
-  if _estado not in ('pendiente','aprobado','rechazado') then raise exception 'Estado inválido'; end if;
+  if _estado not in ('pendiente','aprobado','rechazado') then raise exception 'Estado invÃ¡lido'; end if;
   select * into v from public.inscripciones i where i.id=_id for update;
-  if not found then raise exception 'Inscripción no encontrada'; end if;
+  if not found then raise exception 'InscripciÃ³n no encontrada'; end if;
 
   if _estado='rechazado' then
     delete from public.cartones c
@@ -888,7 +888,7 @@ begin
          and i.estado in ('pendiente','aprobado')
          and i.cartones && v.cartones)
     into v_conflictos;
-    if v_conflictos>0 then raise exception 'Uno o más cartones ya pertenecen a otra persona'; end if;
+    if v_conflictos>0 then raise exception 'Uno o mÃ¡s cartones ya pertenecen a otra persona'; end if;
 
     for v_num in select x::bigint from unnest(v.cartones) x where x ~ '^[0-9]+$'
     loop
@@ -916,7 +916,7 @@ declare v public.inscripciones%rowtype;
 begin
   if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
   select * into v from public.inscripciones i where i.id=_id for update;
-  if not found then raise exception 'Inscripción no encontrada'; end if;
+  if not found then raise exception 'InscripciÃ³n no encontrada'; end if;
   delete from public.cartones c
   where c.cedula=v.cedula
     and c.numero::text=any(v.cartones)
@@ -969,7 +969,7 @@ begin
 end;
 $$;
 
--- Cierra el EXECUTE implícito que PostgreSQL concede a PUBLIC.
+-- Cierra el EXECUTE implÃ­cito que PostgreSQL concede a PUBLIC.
 revoke all on function public.rpc_configuracion_publica() from public, anon, authenticated;
 revoke all on function public.rpc_cartones_ocupados() from public, anon, authenticated;
 revoke all on function public.rpc_ganadores_publicos() from public, anon, authenticated;
@@ -1049,9 +1049,9 @@ with check(
   and length(name) < 180
 );
 
--- Permite al mismo cliente limpiar un comprobante recién subido cuando la
--- inscripción falla. El nombre UUID no se puede listar ni descargar y la
--- eliminación deja de estar permitida en cuanto el archivo se usa o envejece.
+-- Permite al mismo cliente limpiar un comprobante reciÃ©n subido cuando la
+-- inscripciÃ³n falla. El nombre UUID no se puede listar ni descargar y la
+-- eliminaciÃ³n deja de estar permitida en cuanto el archivo se usa o envejece.
 create or replace function private.can_delete_recent_receipt(
   _name text,
   _created_at timestamptz
@@ -1099,12 +1099,12 @@ grant select,insert,update,delete on storage.objects to authenticated;
 
 notify pgrst, 'reload schema';
 
--- ═══════════════════════════════════════════════════════════════════
--- CARTÓN GRATIS POR REFERIDOS
--- Esta sección coincide con la migración versionada de 2026-07-20.
--- ═══════════════════════════════════════════════════════════════════
+-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+-- CARTÃ“N GRATIS POR REFERIDOS
+-- Esta secciÃ³n coincide con la migraciÃ³n versionada de 2026-07-20.
+-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
--- Premio de cartón gratis por referidos.
+-- Premio de cartÃ³n gratis por referidos.
 -- La captura es evidencia para el administrador; la elegibilidad siempre se
 -- valida de nuevo en PostgreSQL antes de crear y antes de aprobar la solicitud.
 
@@ -1210,6 +1210,121 @@ create index if not exists inscripciones_referido_canonico_idx
   include (referido)
   where estado = 'aprobado' and referido is not null;
 
+create table if not exists private.cedulas_aprobadas_historial (
+  cedula text primary key check (cedula ~ '^[0-9]{5,14}$'),
+  primera_inscripcion_id bigint not null check (primera_inscripcion_id > 0),
+  primer_referidor_cedula text check (
+    primer_referidor_cedula is null
+    or (
+      primer_referidor_cedula ~ '^[0-9]{5,14}$'
+      and primer_referidor_cedula <> cedula
+    )
+  ),
+  primera_aprobacion_at timestamptz not null,
+  registrado_at timestamptz not null default now()
+);
+
+comment on table private.cedulas_aprobadas_historial is
+  'Registro interno permanente para impedir que una cedula aprobada vuelva a generar credito como referido.';
+comment on column private.cedulas_aprobadas_historial.primera_inscripcion_id is
+  'Identificador historico sin FK: la inscripcion original se elimina al reiniciar las ventas.';
+
+create index if not exists cedulas_aprobadas_historial_referidor_idx
+  on private.cedulas_aprobadas_historial (
+    primer_referidor_cedula,
+    primera_aprobacion_at,
+    cedula
+  )
+  where primer_referidor_cedula is not null;
+
+alter table private.cedulas_aprobadas_historial enable row level security;
+revoke all on table private.cedulas_aprobadas_historial
+  from public, anon, authenticated, service_role;
+
+with normalizadas as (
+  select
+    i.id,
+    regexp_replace(coalesce(i.cedula, ''), '[^0-9]', '', 'g') as cedula,
+    regexp_replace(coalesce(i.referido, ''), '[^0-9]', '', 'g') as referidor,
+    i.created_at,
+    row_number() over (
+      partition by regexp_replace(coalesce(i.cedula, ''), '[^0-9]', '', 'g')
+      order by i.created_at, i.id
+    ) as orden
+  from public.inscripciones i
+  where i.estado = 'aprobado'
+    and regexp_replace(coalesce(i.cedula, ''), '[^0-9]', '', 'g')
+      ~ '^[0-9]{5,14}$'
+)
+insert into private.cedulas_aprobadas_historial (
+  cedula,
+  primera_inscripcion_id,
+  primer_referidor_cedula,
+  primera_aprobacion_at
+)
+select
+  n.cedula,
+  n.id,
+  case
+    when n.referidor ~ '^[0-9]{5,14}$' and n.referidor <> n.cedula
+      then n.referidor
+    else null
+  end,
+  n.created_at
+from normalizadas n
+where n.orden = 1
+on conflict (cedula) do nothing;
+
+create or replace function private.registrar_primera_cedula_aprobada()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_cedula text := regexp_replace(coalesce(new.cedula, ''), '[^0-9]', '', 'g');
+  v_referidor text := regexp_replace(coalesce(new.referido, ''), '[^0-9]', '', 'g');
+begin
+  if tg_op = 'UPDATE' and old.estado = 'aprobado' then
+    return new;
+  end if;
+
+  if new.estado <> 'aprobado' or v_cedula !~ '^[0-9]{5,14}$' then
+    return new;
+  end if;
+
+  if v_referidor !~ '^[0-9]{5,14}$' or v_referidor = v_cedula then
+    v_referidor := null;
+  end if;
+
+  insert into private.cedulas_aprobadas_historial (
+    cedula,
+    primera_inscripcion_id,
+    primer_referidor_cedula,
+    primera_aprobacion_at
+  ) values (
+    v_cedula,
+    new.id,
+    v_referidor,
+    now()
+  )
+  on conflict (cedula) do nothing;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.registrar_primera_cedula_aprobada()
+  from public, anon, authenticated, service_role;
+
+drop trigger if exists registrar_primera_cedula_aprobada
+  on public.inscripciones;
+create trigger registrar_primera_cedula_aprobada
+after insert or update of estado on public.inscripciones
+for each row
+when (new.estado = 'aprobado')
+execute function private.registrar_primera_cedula_aprobada();
+
 alter table public.solicitudes_carton_gratis enable row level security;
 alter table public.referidos_canjeados enable row level security;
 
@@ -1233,28 +1348,19 @@ stable
 security definer
 set search_path = ''
 as $$
-  with atribuciones as (
-    select distinct on (i.cedula)
-      i.cedula as referido_cedula,
-      regexp_replace(i.referido, '[^0-9]', '', 'g') as referidor_cedula,
-      i.created_at as aprobado_at
-    from public.inscripciones i
-    where i.estado = 'aprobado'
-      and i.cedula ~ '^[0-9]{5,14}$'
-      and regexp_replace(coalesce(i.referido, ''), '[^0-9]', '', 'g')
-        ~ '^[0-9]{5,14}$'
-      and i.cedula <> regexp_replace(i.referido, '[^0-9]', '', 'g')
-    order by i.cedula, i.created_at, i.id
-  )
-  select a.referido_cedula, a.aprobado_at
-  from atribuciones a
-  where a.referidor_cedula =
-    regexp_replace(coalesce(_cedula, ''), '[^0-9]', '', 'g')
-  order by a.aprobado_at, a.referido_cedula;
+  select h.cedula, h.primera_aprobacion_at
+  from private.cedulas_aprobadas_historial h
+  join public.inscripciones i
+    on i.id = h.primera_inscripcion_id
+   and regexp_replace(coalesce(i.cedula, ''), '[^0-9]', '', 'g') = h.cedula
+  where i.estado = 'aprobado'
+    and h.primer_referidor_cedula =
+      regexp_replace(coalesce(_cedula, ''), '[^0-9]', '', 'g')
+  order by h.primera_aprobacion_at, h.cedula;
 $$;
 
 revoke all on function private.referidos_aprobados_canonicos(text)
-  from public, anon, authenticated;
+  from public, anon, authenticated, service_role;
 
 create or replace function public.rpc_resumen_referidos(_cedula text)
 returns jsonb
@@ -1373,29 +1479,29 @@ declare
   v_reserva public.cartones%rowtype;
 begin
   if v_cedula !~ '^[0-9]{5,14}$' then
-    raise exception 'Cédula inválida';
+    raise exception 'CÃ©dula invÃ¡lida';
   end if;
   if length(v_telefono) < 7 or length(v_telefono) > 15 then
-    raise exception 'Teléfono inválido';
+    raise exception 'TelÃ©fono invÃ¡lido';
   end if;
   if coalesce(_reserva_token, '') !~ '^[0-9a-f]{64}$' then
-    raise exception 'Token de reserva inválido';
+    raise exception 'Token de reserva invÃ¡lido';
   end if;
   if coalesce(_captura, '') !~
     '^[0-9]{4}-[0-9]{2}-[0-9]{2}/[0-9a-fA-F-]{36}\.(jpg|jpeg|png|webp)$' then
-    raise exception 'Captura inválida';
+    raise exception 'Captura invÃ¡lida';
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('premio-referidos:' || v_cedula, 0)
   );
 
-  select coalesce(c.valor, lower(c.valore) in ('true', '1', 'si', 'sí'))
+  select coalesce(c.valor, lower(c.valore) in ('true', '1', 'si', 'sÃ­'))
   into v_ventas
   from public.configuracion c
   where c.clave = 'ventas_abierta';
   if v_ventas is not true then
-    raise exception 'Las ventas están cerradas';
+    raise exception 'Las ventas estÃ¡n cerradas';
   end if;
 
   select least(100, greatest(1, coalesce(nullif(c.valore, '')::integer, 5)))
@@ -1411,7 +1517,7 @@ begin
   v_total := coalesce(v_total, 300);
 
   if _carton < 1 or _carton > v_total then
-    raise exception 'Cartón fuera de rango';
+    raise exception 'CartÃ³n fuera de rango';
   end if;
 
   if exists (
@@ -1419,7 +1525,7 @@ begin
     from public.solicitudes_carton_gratis s
     where s.cedula = v_cedula and s.estado = 'pendiente'
   ) then
-    raise exception 'Ya tienes un cartón gratis pendiente de revisión';
+    raise exception 'Ya tienes un cartÃ³n gratis pendiente de revisiÃ³n';
   end if;
 
   select count(*)::integer
@@ -1433,7 +1539,7 @@ begin
   );
 
   if v_disponibles < v_meta then
-    raise exception 'Aún no tienes los % referidos aprobados disponibles', v_meta;
+    raise exception 'AÃºn no tienes los % referidos aprobados disponibles', v_meta;
   end if;
 
   select i.*
@@ -1446,7 +1552,7 @@ begin
   limit 1;
 
   if not found then
-    raise exception 'El teléfono no coincide con una compra aprobada de esta cédula';
+    raise exception 'El telÃ©fono no coincide con una compra aprobada de esta cÃ©dula';
   end if;
 
   if not exists (
@@ -1454,7 +1560,7 @@ begin
     from storage.objects o
     where o.bucket_id = 'comprobantes' and o.name = _captura
   ) then
-    raise exception 'No se encontró la captura subida';
+    raise exception 'No se encontrÃ³ la captura subida';
   end if;
 
   if exists (
@@ -1478,7 +1584,7 @@ begin
      or v_reserva.reserva_token_hash is distinct from
         private.hash_reserva_token(_reserva_token)
      or v_reserva.premio_solicitud_id is not null then
-    raise exception 'La reserva del cartón venció o pertenece a otra persona';
+    raise exception 'La reserva del cartÃ³n venciÃ³ o pertenece a otra persona';
   end if;
 
   insert into public.solicitudes_carton_gratis (
@@ -1585,7 +1691,7 @@ begin
     raise exception 'Acceso denegado';
   end if;
   if _estado not in ('aprobado', 'rechazado') then
-    raise exception 'Estado inválido';
+    raise exception 'Estado invÃ¡lido';
   end if;
 
   select s.* into v
@@ -1620,7 +1726,7 @@ begin
   if not found
      or v_carton.cedula <> v.cedula
      or v_carton.premio_solicitud_id is distinct from v.id then
-    raise exception 'El cartón reservado para esta solicitud ya no está disponible';
+    raise exception 'El cartÃ³n reservado para esta solicitud ya no estÃ¡ disponible';
   end if;
 
   if _estado = 'rechazado' then
@@ -1825,14 +1931,14 @@ declare
 begin
   if not (select private.is_admin()) then raise exception 'Acceso denegado'; end if;
   if _estado not in ('pendiente', 'aprobado', 'rechazado') then
-    raise exception 'Estado inválido';
+    raise exception 'Estado invÃ¡lido';
   end if;
 
   select * into v
   from public.inscripciones i
   where i.id = _id
   for update;
-  if not found then raise exception 'Inscripción no encontrada'; end if;
+  if not found then raise exception 'InscripciÃ³n no encontrada'; end if;
 
   if _estado = 'rechazado' then
     delete from public.cartones c
@@ -1870,7 +1976,7 @@ begin
     into v_conflictos;
 
     if v_conflictos > 0 then
-      raise exception 'Uno o más cartones ya pertenecen a otra persona o a un premio';
+      raise exception 'Uno o mÃ¡s cartones ya pertenecen a otra persona o a un premio';
     end if;
 
     for v_num in
@@ -1908,7 +2014,7 @@ begin
   from public.inscripciones i
   where i.id = _id
   for update;
-  if not found then raise exception 'Inscripción no encontrada'; end if;
+  if not found then raise exception 'InscripciÃ³n no encontrada'; end if;
 
   delete from public.cartones c
   where c.cedula = v.cedula
@@ -2079,7 +2185,7 @@ begin
     raise exception 'Acceso denegado';
   end if;
   if _estado not in ('aprobado', 'rechazado') then
-    raise exception 'Estado inválido';
+    raise exception 'Estado invÃ¡lido';
   end if;
 
   select least(100, greatest(1, coalesce(nullif(c.valore, '')::integer, 5)))
@@ -2136,7 +2242,7 @@ begin
   if not found
      or v_carton.cedula <> v.cedula
      or v_carton.premio_solicitud_id is distinct from v.id then
-    raise exception 'El cartón reservado para esta solicitud ya no está disponible';
+    raise exception 'El cartÃ³n reservado para esta solicitud ya no estÃ¡ disponible';
   end if;
 
   if _estado = 'rechazado' then
@@ -2233,3 +2339,4 @@ grant execute on function public.rpc_admin_resolver_carton_gratis(bigint,text)
 
 
 notify pgrst, 'reload schema';
+

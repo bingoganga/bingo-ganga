@@ -3601,7 +3601,7 @@ cartonesOcupados = await fetchTodosLosOcupados();
     const urlComprobante = urlsComprobantes.get(rutaComprobante) || '';
     const enlaceWhatsapp = buildWhatsAppLink(
       item.telefono,
-      `Hola ${item.nombre}, te escribo de parte del equipo de bingoandino75.`
+      `Hola ${item.nombre}, te escribo de parte del equipo de bingo ganga.`
     );
     tr.dataset.estadoActual = item.estado || 'pendiente';
     tr.innerHTML = `
@@ -4625,7 +4625,7 @@ function buildWhatsAppLink(rawPhone, presetMsg = '') {
   }
 
   const waNumber = s.replace(/^\+/, '');
-  const text = encodeURIComponent(presetMsg || 'Hola, te escribo de parte del equipo de bingoandino75.');
+  const text = encodeURIComponent(presetMsg || 'Hola, te escribo de parte del equipo de bingo ganga.');
   return `https://wa.me/${waNumber}?text=${text}`;
 }
 
